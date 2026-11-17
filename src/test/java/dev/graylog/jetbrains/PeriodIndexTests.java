@@ -119,7 +119,7 @@ final class PeriodIndexTests {
         String url = "http://127.0.0.1:" + server.getAddress().getPort();
         try (GraylogClient client = new GraylogClient(url, "secret-token")) {
             List<Long> progress = new ArrayList<>();
-            GraylogClient.PeriodIndex index = client.indexPeriod(request().page(5000), connection(), Path.of("/work"), progress::add);
+            GraylogApi.PeriodIndex index = client.indexPeriod(request().page(5000), connection(), Path.of("/work"), progress::add);
             eq((long) TOTAL, index.messages()); eq(39L, index.exceptions()); eq(3, index.sites().size());
             ExceptionSites.Site older = index.sites().stream().filter(s -> s.location().line() == 103).findFirst().orElseThrow();
             eq(37L, older.count()); eq(20, older.events().size());
@@ -134,7 +134,7 @@ final class PeriodIndexTests {
             IdeOptions custom = new IdeOptions(); custom.exportBatchSize = 37; custom.examplesPerLocation = 3;
             LogFormat format = new LogFormat(); format.exceptionObjectField = "ctx.err";
             try (GraylogClient configured = new GraylogClient(url, "secret-token", custom, format)) {
-                GraylogClient.PeriodIndex configuredIndex = configured.indexPeriod(request(), connection(), Path.of("/work"), ignored -> {});
+                GraylogApi.PeriodIndex configuredIndex = configured.indexPeriod(request(), connection(), Path.of("/work"), ignored -> {});
                 eq(39L, configuredIndex.exceptions());
                 ExceptionSites.Site configuredOlder = configuredIndex.sites().stream().filter(s -> s.location().line() == 103).findFirst().orElseThrow();
                 eq(37L, configuredOlder.count()); eq(3, configuredOlder.events().size());

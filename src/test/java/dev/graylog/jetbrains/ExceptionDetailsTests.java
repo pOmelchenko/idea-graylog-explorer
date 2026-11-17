@@ -39,7 +39,7 @@ final class ExceptionDetailsTests {
         check(SourceLocation.parseTrace(event.text("exception")).stream().allMatch(f -> f.path().startsWith("/application/") && !f.path().contains("\"")), "Raw JSON path extraction crosses string boundaries");
         eq("GraphQL\\Error\\UserError", ExceptionSites.exceptionName(event));
         Connection connection = new Connection(); connection.localRoot = "/work";
-        var sites = ExceptionSites.build(List.of(event, event), connection, Path.of("/work"));
+        var sites = CoreTests.sites(List.of(event), connection, Path.of("/work"));
         eq(2, sites.size());
         var causeSite = sites.stream().filter(s -> s.location().line() == 91).findFirst().orElseThrow();
         eq(List.of(chain.getLast().type()), causeSite.types()); eq(1L, causeSite.count());

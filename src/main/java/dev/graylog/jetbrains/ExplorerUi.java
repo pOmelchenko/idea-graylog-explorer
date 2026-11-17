@@ -22,6 +22,8 @@ import java.util.function.BooleanSupplier;
 
 /** Shared native tool-window surfaces and adapters for the Explorer's command models. */
 final class ExplorerUi {
+    static final Color ERROR_COLOR = new JBColor(new Color(175, 41, 45), new Color(255, 113, 119));
+    static final Color WARN_COLOR = new JBColor(new Color(145, 99, 10), new Color(231, 181, 73));
     private ExplorerUi() { }
     static Icon colorIcon(Color color) {
         return new Icon() {
@@ -135,13 +137,20 @@ final class ExplorerUi {
             return group;
         }
     }
+    /** Log data is plain text even when it starts with Swing's HTML marker. */
+    static String plainTooltip(String value) {
+        if (value == null) return null;
+        String text = value.codePointCount(0, value.length()) <= 500 ? value : value.substring(0, value.offsetByCodePoints(0, 500)) + "…";
+        return javax.swing.plaf.basic.BasicHTML.isHTMLString(text)
+                ? "<html>" + com.intellij.openapi.util.text.StringUtil.escapeXmlEntities(text) + "</html>" : text;
+    }
     static DefaultTableCellRenderer cells() {
         return new DefaultTableCellRenderer() {
             @Override public Component getTableCellRendererComponent(JTable table, Object value, boolean selected, boolean focus, int row, int column) {
                 super.getTableCellRendererComponent(table, value, selected, focus, row, column);
                 setBorder(JBUI.Borders.empty(0, 8));
                 String tooltip = value == null ? null : value.toString();
-                setToolTipText(tooltip == null || tooltip.length() <= 500 ? tooltip : tooltip.substring(0, 500) + "…");
+                setToolTipText(plainTooltip(tooltip));
                 return this;
             }
         };

@@ -1,6 +1,5 @@
 package dev.graylog.jetbrains;
 
-import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.options.SearchableConfigurable;
 import com.intellij.openapi.project.Project;
@@ -14,7 +13,6 @@ import com.intellij.util.ui.LocalPathCellEditor;
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -100,7 +98,9 @@ public final class GraylogProjectConfigurable implements SearchableConfigurable 
         if (draft == null || loading) return;
         if (editing.isBlank()) draft.defaults = readProfile();
         else if (customize.isSelected()) {
-            ProjectProfile value = readProfile(); draft.profiles.removeIf(p -> p.connectionId.equals(editing)); draft.profiles.add(value);
+            ProjectProfile value = readProfile(); int position = -1;
+            for (int i = 0; i < draft.profiles.size(); i++) if (draft.profiles.get(i).connectionId.equals(editing)) { position = i; break; }
+            if (position < 0) draft.profiles.add(value); else draft.profiles.set(position, value);
         }
     }
     private void showProfile() {

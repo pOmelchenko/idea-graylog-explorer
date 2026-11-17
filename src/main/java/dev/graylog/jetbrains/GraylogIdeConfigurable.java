@@ -17,9 +17,7 @@ import com.intellij.util.ui.JBUI;
 
 import javax.swing.*;
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
 import java.util.*;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -121,6 +119,7 @@ public final class GraylogIdeConfigurable implements SearchableConfigurable, Con
         JTextField field = new JBTextField(); field.setEditable(false); field.setOpaque(false); field.setBorder(JBUI.Borders.empty()); field.setFont(UIUtil.getLabelFont()); return field;
     }
     private void showConnection() {
+        cancelConnectionTest();
         ServerConnection c = list.getSelectedValue();
         ((java.awt.CardLayout) connectionDetails.getLayout()).show(connectionDetails, c == null ? "empty" : "details");
         connectionName.setText(c == null ? "" : c.name); apiPreview.setText(c == null ? "" : c.apiUrl); webPreview.setText(c == null ? "" : c.webUrl);
@@ -140,6 +139,9 @@ public final class GraylogIdeConfigurable implements SearchableConfigurable, Con
         list.setSelectedIndex(position); showConnection(); refreshChoices(selectedDefault());
     }
 
+    private void cancelConnectionTest() {
+        testNumber++; if (testTask != null) testTask.cancel(true); testTask = null;
+    }
     private void testConnection() {
         ServerConnection selected = list.getSelectedValue(); if (selected == null) { testStatus.setText("Select a connection first."); return; }
         IdeOptions options;
@@ -198,36 +200,19 @@ public final class GraylogIdeConfigurable implements SearchableConfigurable, Con
         GraylogIdeSettings.Data state;
         try { state = draft(); } catch (IllegalArgumentException e) { throw new ConfigurationException(e.getMessage()); }
         try { state.validate(); } catch (IllegalArgumentException e) { throw new ConfigurationException(e.getMessage()); }
-        Set<String> retained = new HashSet<>(); state.connections.forEach(c -> retained.add(c.credentialKey()));
-        Set<String> removed = new HashSet<>(); GraylogIdeSettings.get().getState().connections.forEach(c -> {
-            boolean deleted = state.connections.stream().noneMatch(server -> server.id.equals(c.id));
-            // Keep legacy ID-based entries on rotation: unopened projects may still need their migration.
-            if (!retained.contains(c.credentialKey()) && (deleted || !c.credentialId.isBlank())) removed.add(c.credentialKey());
-        });
-        if (!pendingTokens.isEmpty() || !removed.isEmpty()) {
+        CredentialUpdate credentials = new CredentialUpdate(base.connections, state.connections, pendingTokens);
+        if (credentials.hasChanges()) {
             AtomicReference<RuntimeException> failure = new AtomicReference<>();
             ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
-                Map<String, String> previous = new LinkedHashMap<>();
-                try {
-                    Set<String> keys = new LinkedHashSet<>();
-                    for (ServerConnection server : state.connections) if (pendingTokens.containsKey(server.id)) keys.add(server.credentialKey());
-                    keys.addAll(removed);
-                    for (String key : keys) previous.put(key, GraylogCredentials.load(key));
-                    for (ServerConnection server : state.connections) if (pendingTokens.containsKey(server.id)) {
-                        GraylogCredentials.save(server.credentialKey(), new String(pendingTokens.get(server.id)));
-                    }
-                    for (String key : removed) GraylogCredentials.remove(key);
-                } catch (RuntimeException e) {
-                    previous.forEach((key, value) -> { try { GraylogCredentials.save(key, value); } catch (RuntimeException ignored) { } });
-                    failure.set(e);
-                }
+                try { credentials.apply(GraylogCredentials.STORE); }
+                catch (RuntimeException error) { failure.set(error); }
             }, "Saving Graylog credentials", false, null);
             if (failure.get() != null) throw new ConfigurationException("Could not update Password Safe; connection settings were not applied.");
         }
         GraylogIdeSettings.get().replace(state); clearTokens(); base = state.copy();
     }
     @Override public void reset() {
-        testNumber++; if (testTask != null) testTask.cancel(true);
+        cancelConnectionTest();
         for (var project : com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()) {
             if (!project.isDisposed()) GraylogSettings.get(project);
         }
@@ -245,7 +230,7 @@ public final class GraylogIdeConfigurable implements SearchableConfigurable, Con
         selectedLight.setText(o.selectedLight); selectedDark.setText(o.selectedDark); testStatus.setText(" ");
     }
     @Override public void disposeUIResources() {
-        disposed = true; testNumber++; if (testTask != null) testTask.cancel(true); if (executor != null) executor.shutdownNow();
+        disposed = true; cancelConnectionTest(); if (executor != null) executor.shutdownNow();
         clearTokens(); panel = null; base = null;
     }
     private void clearTokens() { pendingTokens.values().forEach(GraylogIdeConfigurable::wipe); pendingTokens.clear(); }

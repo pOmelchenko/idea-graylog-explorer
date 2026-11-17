@@ -43,6 +43,12 @@ final class ExplorerPresentationTests {
         options.copy().sourceColors.clear(); eq(1, options.sourceColors.size());
         options.sourceColors.put("api", "red");
         try { options.validate(); throw new AssertionError("Invalid source color accepted"); } catch (IllegalArgumentException expected) { assertions++; }
+        String markup = "<html><img src='untrusted'> & text";
+        var rendered = javax.swing.plaf.basic.BasicHTML.createHTMLView(new javax.swing.JLabel(), ExplorerUi.plainTooltip(markup));
+        var document = (javax.swing.text.html.HTMLDocument) rendered.getDocument();
+        eq(false, document.getIterator(javax.swing.text.html.HTML.Tag.IMG).isValid());
+        eq("ordinary text", ExplorerUi.plainTooltip("ordinary text"));
+        eq(true, ExplorerUi.plainTooltip("x".repeat(1000)).length() <= 501);
         return assertions;
     }
     private static void eq(Object expected, Object actual) { assertions++; if (!java.util.Objects.equals(expected, actual)) throw new AssertionError("Expected " + expected + ", got " + actual); }

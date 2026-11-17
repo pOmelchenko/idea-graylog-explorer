@@ -24,7 +24,7 @@ final class SourceFilterTests {
         rejects(() -> filter.query("*", "bad:field"));
         filter.clear(); eq("*", filter.query("", "source")); eq("Sources: All", filter.label());
         JsonObject parsed = response(scope, "source");
-        GraylogClient.Sources values = GraylogClient.parseSources(parsed, "source", scope);
+        GraylogApi.Sources values = GraylogClient.parseSources(parsed, "source", scope);
         eq(2, values.values().size()); eq("archive-worker", values.values().get(1).name()); eq(9000L, values.values().get(0).count()); eq(false, values.limited());
         JsonObject bad = parsed.deepCopy(); bad.getAsJsonArray("datarows").get(0).getAsJsonArray().set(0, new JsonPrimitive(-1)); JsonObject negative = bad; io(() -> GraylogClient.parseSources(negative, "source", scope));
         bad = parsed.deepCopy(); bad.remove("metadata"); JsonObject missing = bad; io(() -> GraylogClient.parseSources(missing, "source", scope));
@@ -34,8 +34,10 @@ final class SourceFilterTests {
         JsonObject many = parsed.deepCopy(); JsonArray rows = new JsonArray();
         for (int i = 0; i < GraylogClient.SOURCE_LIMIT; i++) { JsonArray row = new JsonArray(); row.add(1); row.add("source-" + i); rows.add(row); }
         many.add("datarows", rows); eq(true, GraylogClient.parseSources(many, "source", scope).limited());
-        GraylogClient.Sources legacy = GraylogClient.parseLegacySources(JsonParser.parseString("{\"terms\":{\"api\":12,\"worker\":4},\"other\":2}").getAsJsonObject());
+        GraylogApi.Sources legacy = GraylogClient.parseLegacySources(JsonParser.parseString("{\"terms\":{\"api\":12,\"worker\":4},\"other\":2}").getAsJsonObject());
         eq(2, legacy.values().size()); eq(true, legacy.limited());
+        SourceFilter alias = new SourceFilter(); alias.replace(List.of("api")); alias.replace(alias.values());
+        eq(Set.of("api"), alias.values());
         http(scope); return assertions;
     }
     private static void http(SearchRequest scope) throws Exception {
@@ -55,7 +57,7 @@ final class SourceFilterTests {
             byte[] bytes = "{\"terms\":{\"legacy-worker\":5},\"other\":0}".getBytes(StandardCharsets.UTF_8); exchange.getResponseHeaders().set("Content-Type", "application/json"); exchange.sendResponseHeaders(200, bytes.length); exchange.getResponseBody().write(bytes); exchange.close();
         }); server.start();
         try (GraylogClient api = new GraylogClient("http://127.0.0.1:" + server.getAddress().getPort() + "/api", "test-source-token")) {
-            GraylogClient.Sources result = api.sources(scope, "service.name"); eq(2, result.values().size());
+            GraylogApi.Sources result = api.sources(scope, "service.name"); eq(2, result.values().size());
             JsonObject input = payload.get(); eq(scope.query(), input.get("query").getAsString());
             eq("stream-x", input.getAsJsonArray("streams").get(0).getAsString());
             eq("absolute", input.getAsJsonObject("timerange").get("type").getAsString());

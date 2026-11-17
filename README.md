@@ -88,7 +88,7 @@ Control hints under **Settings → Tools → Graylog Explorer → Highlighting**
 
 ## Build and test
 
-The normal build uses Gradle, JDK **25** and a pinned downloadable PhpStorm SDK:
+The mixed Java/Kotlin build uses Gradle, JDK **25** and a pinned downloadable PhpStorm SDK:
 
 ```bash
 ./gradlew check buildPlugin verifyPluginStructure verifyPlugin
@@ -102,15 +102,15 @@ To use an installed PhpStorm SDK:
 ./gradlew -PideHome=/path/to/phpstorm check buildPlugin verifyPluginStructure verifyPlugin
 ```
 
-`IDE_HOME` is also supported. The SDK's JBR can supply `JAVA_HOME`. The local-SDK verifier checks that SDK; CI additionally checks the pinned IntelliJ IDEA target. Versions are defined in `gradle.properties`.
+`IDE_HOME` is also supported. The SDK's JBR can supply `JAVA_HOME`. The local-SDK verifier checks that SDK; CI additionally checks the pinned IntelliJ IDEA target. SDK and plugin versions are defined in `gradle.properties`; compiler/build-plugin versions are pinned in `build.gradle`.
 
-The original offline builder remains available and does not download Gradle dependencies:
+The convenience command delegates to the same Gradle build and selects an installed SDK:
 
 ```bash
 python3 build.py --ide-home /path/to/phpstorm
 ```
 
-It runs the core HTTP/parser/settings tests and builds a ZIP. It does not run Plugin Verifier or sign the archive.
+It runs the core HTTP/parser/settings/controller tests and builds the same ZIP. The first build resolves Gradle dependencies; use `--offline` only after they are cached. Run Plugin Verifier explicitly as shown above; this command does not sign the archive.
 
 For real UI smoke tests on Linux, install Xvfb and use a local PhpStorm SDK:
 
@@ -122,6 +122,12 @@ python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --reload
 ```
 
 Smoke tests launch a separate IDE with a generated project, a loopback-only fake Graylog service and isolated configuration. Production archives exclude smoke hooks and demo projects. Fixtures contain synthetic example data.
+
+## Architecture
+
+The Explorer coordinates three views: connections, events and event details. Kotlin controllers own source aggregation/cache and full-period index state. They depend on `GraylogApi` and `TaskRunner` ports; the HTTP client and IntelliJ threading adapter implement those ports. Settings forms use Kotlin UI DSL, while persistent settings beans retain their storage format.
+
+See [the review and refactoring report](docs/review-2026-11-17.md) for findings, boundaries, retained compatibility code and follow-up candidates.
 
 ## Contributing and releases
 

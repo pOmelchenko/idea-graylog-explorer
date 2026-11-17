@@ -21,28 +21,28 @@ final class ChainSmoke {
         Timer wait = new Timer(200, null);
         wait.addActionListener(e -> {
             try {
-                if (!(Boolean) field(panel, "busy") && !(Boolean) field(panel, "indexBusy") && field(panel, "periodIndex") != null) {
+                if (!(Boolean) SmokeUi.field(panel, "busy") && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING) && SmokeUi.index(panel).getResult() != null) {
                     wait.stop();
-                    String text = ((JTextArea) field(panel, "rawStack")).getText();
+                    String text = ((JTextArea) SmokeUi.field(SmokeUi.field(panel, "inspector"), "rawStack")).getText();
                     if (!text.contains("Caused by: Demo\\Profile") || !text.contains("(code 723)") || text.contains("{\"")) throw new AssertionError("Yii trace is not readable: " + text);
-                    GraylogClient.PeriodIndex index = (GraylogClient.PeriodIndex) field(panel, "periodIndex");
+                    GraylogApi.PeriodIndex index = (GraylogApi.PeriodIndex) SmokeUi.index(panel).getResult();
                     if (index.messages() != 1 || index.exceptions() != 1 || index.sites().size() != 3) throw new AssertionError("Yii event chain inflated or lost index counts");
-                    JButton browser = (JButton) field(panel, "browser");
+                    JButton browser = (JButton) SmokeUi.field(SmokeUi.field(panel, "inspector"), "browser");
                     if (!browser.isEnabled() || !browser.getToolTipText().contains("/messages/graylog_demo_0/yii-error")) throw new AssertionError("Selected log permalink missing");
-                    JTable events = (JTable) field(panel, "events"); events.clearSelection();
+                    JTable events = (JTable) SmokeUi.field(panel, "events"); events.clearSelection();
                     if (browser.isEnabled()) throw new AssertionError("Open Graylog enabled without a selected event");
-                    if (!((JPanel) field(panel, "inspectorBody")).getComponent(0).isVisible()) throw new AssertionError("Empty inspector hint not shown");
+                    if (!((JPanel) SmokeUi.field(SmokeUi.field(panel, "inspector"), "inspectorBody")).getComponent(0).isVisible()) throw new AssertionError("Empty inspector hint not shown");
                     events.setRowSelectionInterval(0, 0);
                     if (!browser.isEnabled()) throw new AssertionError("Open Graylog did not follow the new selection");
-                    if (!((JPanel) field(panel, "inspectorBody")).getComponent(1).isVisible()) throw new AssertionError("Event inspector not restored after selection");
-                    @SuppressWarnings("unchecked") JList<SourceLocation> locations = (JList<SourceLocation>) field(panel, "locations");
+                    if (!((JPanel) SmokeUi.field(SmokeUi.field(panel, "inspector"), "inspectorBody")).getComponent(1).isVisible()) throw new AssertionError("Event inspector not restored after selection");
+                    @SuppressWarnings("unchecked") JList<SourceLocation> locations = (JList<SourceLocation>) SmokeUi.field(SmokeUi.field(panel, "inspector"), "locations");
                     int cause = -1;
                     for (int i = 0; i < locations.getModel().getSize(); i++) {
                         SourceLocation source = locations.getModel().getElementAt(i);
                         if (source.path().endsWith("/Domain/Phone.php") && source.line() == 46) cause = i;
                     }
                     if (cause < 0) throw new AssertionError("Previous exception origin missing from source navigation");
-                    locations.setSelectedIndex(cause); ((JButton) field(panel, "open")).doClick();
+                    locations.setSelectedIndex(cause); ((JButton) SmokeUi.field(SmokeUi.field(panel, "inspector"), "open")).doClick();
                     long valueDeadline = System.currentTimeMillis() + 60000;
                     Timer capture = new Timer(200, tick -> {
                         try {
@@ -71,7 +71,7 @@ final class ChainSmoke {
                             if (hints.getFirst().getOffset() != editor.getDocument().getText().indexOf("$raw);", editor.getDocument().getLineStartOffset(45)) + 4) throw new AssertionError("Value is not placed at the variable token");
                             if (!editor.getInlayModel().getAfterLineEndElementsInRange(editor.getDocument().getLineStartOffset(45), editor.getDocument().getLineEndOffset(45), ExceptionInlineRenderer.class).isEmpty()) throw new AssertionError("Line fallback duplicates a resolved variable hint");
                             if (editor.getDocument().getText().contains("+12025550123")) throw new AssertionError("Logged value changed the source document");
-                            SmokeUi.captureTabs(project, (com.intellij.ui.tabs.JBTabs) field(panel, "inspectorTabs"), report, () -> {
+                            SmokeUi.captureTabs(project, (com.intellij.ui.tabs.JBTabs) SmokeUi.field(SmokeUi.field(panel, "inspector"), "inspectorTabs"), report, () -> {
                                 try {
                                     Files.writeString(report.resolve("yii-result.txt"), "PASS: One Yii log event produces three exception origins; Phone.php:46 shows the exact logged phone in a temporary inline hint and gutter tooltip. Source text is unchanged. Native Fields, Stack trace and JSON tabs were captured.\n");
                                     VariableHintsSmoke.run(project, panel, report, () -> ExplorerUiSmoke.run(project, panel, report, done));
@@ -83,10 +83,7 @@ final class ChainSmoke {
             } catch (Throwable failure) { wait.stop(); fail(report, failure); }
         }); wait.start();
     }
-    private static Object field(Object object, String name) {
-        try { Field f = object.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(object); }
-        catch (ReflectiveOperationException e) { throw new IllegalStateException(e); }
-    }
+
     private static void fail(Path report, Throwable error) {
         try { java.io.StringWriter s = new java.io.StringWriter(); error.printStackTrace(new java.io.PrintWriter(s)); Files.writeString(report.resolve("result.txt"), "FAIL: " + s); }
         catch (Exception ignored) { }

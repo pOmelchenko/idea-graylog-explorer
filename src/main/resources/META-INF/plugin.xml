@@ -1,7 +1,6 @@
 <idea-plugin url="https://github.com/pOmelchenko/idea-graylog-explorer">
     <id>dev.omelchenko.graylogexplorer</id>
     <name>Graylog Explorer</name>
-    <version>0.12.1</version>
     <vendor url="https://github.com/pOmelchenko/idea-graylog-explorer" email="p.Omelchenko@gmail.com">Pavel Omelchenko</vendor>
     <description><![CDATA[
       <p>Search Graylog logs without leaving your IDE. Browse streams, follow a request,
@@ -29,9 +28,13 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
-      <p>Declare incompatibility with the old local prototype (dev.graylog.jetbrains)
-      to prevent duplicate Graylog tool window and action registrations.</p>
-      <p>Disable or uninstall the prototype before using the public plugin.</p>
+      <ul>
+        <li>Separate Explorer views and background controllers; preserve query, source and time scope.</li>
+        <li>Use native Kotlin UI DSL forms for connections and settings.</li>
+        <li>Improve cancellation, retry and credential rollback; preserve connection/profile ordering.</li>
+        <li>Harden pagination bounds and plain-text log tooltips.</li>
+        <li>Use one Gradle Java/Kotlin build with controller, UI and restartless-update regression tests.</li>
+      </ul>
     ]]></change-notes>
     <idea-version since-build="263" until-build="263.*"/>
     <depends>com.intellij.modules.platform</depends>

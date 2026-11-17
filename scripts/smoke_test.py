@@ -9,11 +9,10 @@ import subprocess
 import sys
 import time
 import zipfile
-import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from build import find_ide, java_bin
+from build import find_ide, java_bin, project_version
 
 
 def terminate(process):
@@ -42,28 +41,46 @@ def main():
     if workspace.exists():
         shutil.rmtree(workspace)
     report = ROOT / "build/reports/smoke" / ("reload" if args.reload else args.theme)
-    report.mkdir(parents=True, exist_ok=True)
-    for name in ["reload-steps.txt", "explorer-panel.png", "sources-window-panel.png", "sources-tree-panel.png", "php-values-editor.png", "legacy-conflict-result.txt", "result.txt", "startup.txt", "settings-result.txt", "settings-ide.png", "settings-project.png", "settings-failure.png", "variable-values-result.txt", "variable-values.png", "yii-result.txt", "yii-stack-trace.png",
-                 "ui-details-result.txt", "ui-details-failure.png", "settings-sources.png", "settings-highlighting.png", "settings-search.png", "settings-network.png", "tree-focused.png", "tree-unfocused.png",
-                 "query-completion.png", "query-level-values.png", "explorer-fields.png", "explorer-stack.png", "explorer-json.png", "explorer-exception-text.png",
-                 "navigation-result.txt", "navigation-expanded.png", "navigation-collapsed.png", "source-tree-result.txt", "sources-tree.png", "sources-window.png", "source-tree-failure.png", "sources-result.txt", "sources-filter.png", "sources-selected.png", "sources-failure.png"]:
-        (report / name).unlink(missing_ok=True)
+    if report.exists():
+        shutil.rmtree(report)
+    report.mkdir(parents=True)
     workspace.mkdir(parents=True)
     classes = workspace / "classes"
     classes.mkdir()
     jars = sorted((ide / "lib").glob("*.jar")) + [ide / "plugins/php-impl/lib/php-openapi.jar"]
-    # Smoke runs against the finished production classes, but its own hook stays test-only.
-    main_classes = ROOT / "build/classes/main"
-    if not main_classes.exists():
-        raise SystemExit("Run python3 build.py first.")
-    classpath = os.pathsep.join(map(str, [main_classes, *jars]))
+    # Test the packaged Java/Kotlin production artifact, including its actual runtime dependencies.
+    version = project_version()
+    distribution = ROOT / f"build/distributions/graylog-jetbrains-{version}.zip"
+    if not distribution.exists():
+        raise SystemExit("Run python3 build.py or ./gradlew buildPlugin first.")
+    production = workspace / "production"
+    production.mkdir()
+    libraries = []
+    with zipfile.ZipFile(distribution) as archive:
+        for item in archive.namelist():
+            if item.endswith(".jar") and "/lib/" in item:
+                destination = production / Path(item).name
+                if destination.exists():
+                    raise RuntimeError("Duplicate library name in plugin distribution")
+                destination.write_bytes(archive.read(item))
+                libraries.append(destination)
+    candidates = []
+    for library in libraries:
+        with zipfile.ZipFile(library) as archive:
+            if "META-INF/plugin.xml" in archive.namelist():
+                candidates.append(library)
+    if len(candidates) != 1:
+        raise RuntimeError("Expected one production plugin descriptor")
+    original = candidates[0]
+    classpath = os.pathsep.join(map(str, [*libraries, *jars]))
     sources = list((ROOT / "src/smoke/java").rglob("*.java")) + list((ROOT / "src/reload/java").rglob("*.java"))
     subprocess.run([java_bin(ide, "javac"), "--release", "21", "-proc:none", "-classpath", classpath,
                     "-d", str(classes), *map(str, sources)], check=True)
     lib = workspace / "plugins/graylog-jetbrains/lib"
     lib.mkdir(parents=True)
-    version = ET.parse(ROOT / "src/main/resources/META-INF/plugin.xml").getroot().findtext("version")
-    original = ROOT / f"build/libs/graylog-jetbrains-plugin-{version}.jar"
+    for library in libraries:
+        if library != original:
+            shutil.copy2(library, lib / library.name)
     if args.reload:
         # Production JAR stays untouched. The controller has its own classloader and no plugin dependency.
         shutil.copy2(original, lib / original.name)
@@ -77,6 +94,9 @@ def main():
                 archive.write(file, file.relative_to(classes).as_posix())
         upgrade = workspace / "upgrade/graylog-jetbrains/lib"
         upgrade.mkdir(parents=True)
+        for library in libraries:
+            if library != original:
+                shutil.copy2(library, upgrade / library.name)
         with zipfile.ZipFile(original) as source, zipfile.ZipFile(upgrade / f"graylog-jetbrains-plugin-{version}-reload-test.jar", "w", zipfile.ZIP_DEFLATED) as target:
             for item in source.infolist():
                 value = source.read(item.filename)
@@ -125,6 +145,8 @@ def main():
         config = workspace / "config/options"
         config.mkdir(parents=True)
         (config / "ide.general.xml").write_text('<application><component name="GeneralSettings"><option name="showTipsOnStartup" value="false"/></component></application>')
+        # Must be configured before any bundled plugin initializes Password Safe.
+        (config / "security.xml").write_text('<application><component name="PasswordSafe"><option name="PROVIDER" value="MEMORY_ONLY"/></component></application>')
         options = workspace / "smoke.vmoptions"
         options.write_text("\n".join(["-Xmx1024m" if args.reload else "-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.reload.plugin={workspace / 'plugins/graylog-jetbrains'}", f"-Dgraylog.reload.upgrade={workspace / 'upgrade/graylog-jetbrains'}", f"-Dgraylog.smoke.legacyInstalled={str(args.with_legacy_prototype).lower()}", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
                                     f"-Dgraylog.smoke.report={report}", f"-Dgraylog.smoke.theme={args.theme}", "-Didea.initially.ask.config=false",
@@ -137,17 +159,25 @@ def main():
         env = os.environ.copy()
         # Keep the test on Xvfb even when the user's desktop session runs on Wayland.
         env.pop("WAYLAND_DISPLAY", None)
+        env.pop("XAUTHORITY", None)
         env["XDG_SESSION_TYPE"] = "x11"
         # A private display also lets us capture startup failures without touching the user's desktop.
         read_fd, write_fd = os.pipe()
-        display = subprocess.Popen(["Xvfb", "-displayfd", str(write_fd), "-screen", "0", "1800x1100x24", "-nolisten", "tcp"],
-                                   pass_fds=(write_fd,), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        with (report / "xvfb.log").open("w") as display_log:
+            display = subprocess.Popen(["Xvfb", "-displayfd", str(write_fd), "-screen", "0", "1800x1100x24", "-noreset", "-nolisten", "tcp"],
+                                       pass_fds=(write_fd,), stdout=subprocess.DEVNULL, stderr=display_log, env=env, start_new_session=True)
         os.close(write_fd)
         with os.fdopen(read_fd) as stream:
             number = stream.readline().strip()
         if not number:
             raise RuntimeError("Xvfb did not start")
         env["DISPLAY"] = ":" + number
+        if display.poll() is not None:
+            raise RuntimeError(f"Xvfb exited ({display.returncode}); see {report / 'xvfb.log'}")
+        if shutil.which("xdpyinfo"):
+            ready = subprocess.run(["xdpyinfo", "-display", env["DISPLAY"]], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=10)
+            if ready.returncode != 0:
+                raise RuntimeError(f"Xvfb is not accepting connections: {ready.stderr.strip()}; see {report / 'xvfb.log'}")
         env[prefix + "_PROPERTIES"] = str(properties)
         env[prefix + "_VM_OPTIONS"] = str(options)
         with (report / "launcher.log").open("w") as log:

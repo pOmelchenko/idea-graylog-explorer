@@ -2,6 +2,7 @@ package dev.graylog.jetbrains;
 
 /** Inverts only a lossless sprintf template with one plain %s slot. */
 final class LoggedStringTemplate {
+    private static final com.google.gson.Gson JSON = new com.google.gson.GsonBuilder().disableHtmlEscaping().create();
     private LoggedStringTemplate() { }
     static String extract(String format, String message) {
         StringBuilder prefix = new StringBuilder(), suffix = new StringBuilder();
@@ -30,14 +31,13 @@ final class LoggedStringTemplate {
         return decoded.toString();
     }
     static String display(String value) {
-        var gson = new com.google.gson.GsonBuilder().disableHtmlEscaping().create();
         int points = value.codePointCount(0, value.length());
         String shown = points <= 96 ? value : value.substring(0, value.offsetByCodePoints(0, 96)) + "…";
-        String safe = gson.toJson(shown);
+        String safe = JSON.toJson(shown);
         while (safe.codePointCount(0, safe.length()) > 100) {
             int length = shown.codePointCount(0, shown.length());
             shown = shown.substring(0, shown.offsetByCodePoints(0, length - 2)) + "…";
-            safe = gson.toJson(shown);
+            safe = JSON.toJson(shown);
         }
         return " = " + safe + " · Graylog";
     }

@@ -10,12 +10,13 @@ Use JDK 25 and the Gradle wrapper. SDK and plugin versions are pinned in `gradle
 ./gradlew check buildPlugin verifyPluginStructure verifyPlugin
 ```
 
-An installed PhpStorm can be used with `-PideHome=/path/to/phpstorm`. The Python builder and isolated Xvfb smoke runner remain useful for offline development; see the README.
+An installed PhpStorm can be used with `-PideHome=/path/to/phpstorm`. The Python build command delegates to Gradle; it is not a separate compiler or packager. Once dependencies are cached, `python3 build.py --offline --ide-home /path/to/phpstorm` can build offline. The isolated Xvfb smoke runner consumes the packaged runtime JARs; see the README.
 
 The core tests are executable Java integration tests (`CoreTests`), not a JUnit suite. `check` invokes `integrationTest`; the empty standard `test` task is intentionally disabled. Tests use loopback HTTP fixtures and do not need a real Graylog server.
 
 ## Changes
 
+- Keep application controllers independent of IntelliJ/Swing. Put HTTP and IDE-threading concerns behind the existing ports, and use deterministic controller tests for cancellation and stale completions.
 - Keep IDE UI changes native and respect light/dark themes and editor ownership.
 - Do not perform network or blocking credential access on the UI thread.
 - Preserve query/time/stream scope across source filters, pagination and exception scans.

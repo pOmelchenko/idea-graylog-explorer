@@ -28,7 +28,7 @@ final class SourceFilterPopup {
     private final JLabel status = SettingsForms.help("Loading sources for this period…");
     private final JButton refresh = new JButton("Refresh");
     private final Set<String> draft = new LinkedHashSet<>();
-    private List<GraylogClient.SourceValue> available = List.of();
+    private List<GraylogApi.SourceValue> available = List.of();
     private final JBPopup popup;
     private String summary = "Loading sources for this period…";
 
@@ -42,7 +42,7 @@ final class SourceFilterPopup {
         table.getEmptyText().setText("No matching sources"); table.getTableHeader().setReorderingAllowed(false);
         var sorter = new TableRowSorter<SourceTableModel>(model);
         sorter.setSortable(0, false);
-        sorter.setComparator(1, Comparator.comparing(GraylogClient.SourceValue::name, String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder())));
+        sorter.setComparator(1, Comparator.comparing(GraylogApi.SourceValue::name, String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder())));
         sorter.setSortKeys(List.of(new RowSorter.SortKey(1, SortOrder.ASCENDING))); table.setRowSorter(sorter);
         table.getColumnModel().getColumn(0).setMaxWidth(JBUI.scale(30));
         table.getColumnModel().getColumn(0).setPreferredWidth(JBUI.scale(30));
@@ -51,9 +51,9 @@ final class SourceFilterPopup {
         table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
             @Override public Component getTableCellRendererComponent(JTable owner, Object value, boolean selected, boolean focus, int row, int column) {
                 super.getTableCellRendererComponent(owner, value, selected, false, row, column);
-                var source = (GraylogClient.SourceValue) value;
+                var source = (GraylogApi.SourceValue) value;
                 setText(source.name()); setIcon(ExplorerUi.colorIcon(SourceColors.color(source.name(), options.get().sourceColors)));
-                setToolTipText(source.name()); return this;
+                setToolTipText(ExplorerUi.plainTooltip(source.name())); return this;
             }
         });
         table.getColumnModel().getColumn(2).setCellRenderer(new DefaultTableCellRenderer() {
@@ -93,31 +93,31 @@ final class SourceFilterPopup {
     JBPopup popup() { return popup; }
     boolean alive() { return !popup.isDisposed(); }
     void loading() { refresh.setEnabled(false); summary = "Loading sources for this period…"; updateStatus(); }
-    void loaded(GraylogClient.Sources sources) {
+    void loaded(GraylogApi.Sources sources) {
         available = sources.values(); refresh.setEnabled(true);
         status.setToolTipText(null);
         summary = sources.limited() ? "Top " + available.size() + " sources · use Add by name for others" : available.size() + " source(s) in this period";
         rebuild();
     }
-    void fallback(List<GraylogClient.SourceValue> sources, String error) {
+    void fallback(List<GraylogApi.SourceValue> sources, String error) {
         available = sources; refresh.setEnabled(true); summary = "Aggregation unavailable · loaded-page sources only";
         status.setToolTipText(error); rebuild();
     }
     private void toggle(int viewRow) { int row = table.convertRowIndexToModel(viewRow); model.setValueAt(!draft.contains(model.rows.get(row).name()), row, 0); }
     private void rebuild() {
-        Map<String, GraylogClient.SourceValue> values = new TreeMap<>(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()));
-        available.forEach(value -> values.put(value.name(), value)); draft.forEach(name -> values.putIfAbsent(name, new GraylogClient.SourceValue(name, -1)));
+        Map<String, GraylogApi.SourceValue> values = new TreeMap<>(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()));
+        available.forEach(value -> values.put(value.name(), value)); draft.forEach(name -> values.putIfAbsent(name, new GraylogApi.SourceValue(name, -1)));
         String needle = filter.getText().strip().toLowerCase(Locale.ROOT);
         model.rows = values.values().stream().filter(value -> value.name().toLowerCase(Locale.ROOT).contains(needle)).toList();
         model.fireTableDataChanged();
         if (table.getRowCount() > 0) table.setRowSelectionInterval(0, 0); updateStatus();
     }
     private final class SourceTableModel extends AbstractTableModel {
-        private List<GraylogClient.SourceValue> rows = List.of();
+        private List<GraylogApi.SourceValue> rows = List.of();
         @Override public int getRowCount() { return rows.size(); }
         @Override public int getColumnCount() { return 3; }
         @Override public String getColumnName(int column) { return switch (column) { case 1 -> "Source"; case 2 -> "Messages"; default -> ""; }; }
-        @Override public Class<?> getColumnClass(int column) { return switch (column) { case 0 -> Boolean.class; case 1 -> GraylogClient.SourceValue.class; default -> Long.class; }; }
+        @Override public Class<?> getColumnClass(int column) { return switch (column) { case 0 -> Boolean.class; case 1 -> GraylogApi.SourceValue.class; default -> Long.class; }; }
         @Override public Object getValueAt(int row, int column) { var source = rows.get(row); return switch (column) { case 0 -> draft.contains(source.name()); case 1 -> source; default -> source.count(); }; }
         @Override public boolean isCellEditable(int row, int column) { return column == 0; }
         @Override public void setValueAt(Object value, int row, int column) {

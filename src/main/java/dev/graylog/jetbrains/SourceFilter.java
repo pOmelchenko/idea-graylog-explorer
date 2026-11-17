@@ -7,7 +7,11 @@ import java.util.stream.Collectors;
 final class SourceFilter {
     private final Set<String> selected = new LinkedHashSet<>();
     Set<String> values() { return Collections.unmodifiableSet(selected); }
-    void replace(Collection<String> values) { selected.clear(); values.stream().filter(s -> s != null && !s.isBlank()).forEach(selected::add); }
+    void replace(Collection<String> values) {
+        Set<String> replacement = new LinkedHashSet<>();
+        values.stream().filter(s -> s != null && !s.isBlank()).forEach(replacement::add);
+        selected.clear(); selected.addAll(replacement);
+    }
     void clear() { selected.clear(); }
     String label() { return selected.isEmpty() ? "Sources: All" : selected.size() == 1 ? "Source: " + shorten(selected.iterator().next()) : "Sources: " + selected.size(); }
     private static String shorten(String text) { return text.length() > 26 ? text.substring(0, 25) + "…" : text; }

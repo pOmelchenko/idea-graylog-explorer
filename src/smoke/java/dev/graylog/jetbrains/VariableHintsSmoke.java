@@ -62,8 +62,8 @@ final class VariableHintsSmoke {
         }
         if (editor == null) throw new AssertionError("Phone editor missing");
         final Editor target = editor;
-        ExceptionHighlights highlights = (ExceptionHighlights) field(panel, "highlights");
-        LogEvent original = (LogEvent) field(panel, "selected");
+        ExceptionHighlights highlights = (ExceptionHighlights) SmokeUi.field(panel, "highlights");
+        LogEvent original = (LogEvent) SmokeUi.field(panel, "selected");
         var fields = original.fields().deepCopy();
         var chain = JsonParser.parseString(fields.get("ctxt_exception").getAsString()).getAsJsonObject();
         chain.getAsJsonObject("previous").getAsJsonObject("previous").addProperty("message", "Invalid phone: +12025550124");
@@ -128,7 +128,7 @@ final class VariableHintsSmoke {
             catch (Throwable failure) { timer.stop(); fail(report, trace(failure)); }
         }); timer.start();
     }
-    private static Object field(Object object, String name) throws Exception { var f = object.getClass().getDeclaredField(name); f.setAccessible(true); return f.get(object); }
+
     private static String trace(Throwable failure) { var s = new java.io.StringWriter(); failure.printStackTrace(new java.io.PrintWriter(s)); return s.toString(); }
     private static void fail(Path report, String error) { try { Files.writeString(report.resolve("result.txt"), "FAIL: " + error); } catch (Exception ignored) {} }
 }
