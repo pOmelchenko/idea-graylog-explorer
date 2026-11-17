@@ -34,7 +34,14 @@ public final class CoreTests {
         assertions += LoggedStringTemplateTests.run();
         assertions += ExplorerPresentationTests.run();
         assertions += SourceFilterTests.run();
+        assertions += ControllerTests.run();
+        assertions += CredentialUpdateTests.run();
         System.out.println("PASS: " + assertions + " assertions (URLs, queries, event parsing, exception locations, path mapping, HTTP contracts and cancellation)");
+    }
+
+    static List<ExceptionSites.Site> sites(List<LogEvent> events, Connection connection, Path root) {
+        ExceptionSites.Accumulator accumulator = new ExceptionSites.Accumulator(connection, root);
+        events.forEach(accumulator::accept); return accumulator.finish();
     }
 
     private static void urls() {
@@ -54,6 +61,7 @@ public final class CoreTests {
         eq(request.from(), request.page(100).from()); eq(request.to(), request.page(100).to());
         eq(100, request.page(100).offset());
         rejects(() -> request.page(10000));
+        rejects(() -> request.page(Integer.MAX_VALUE));
         rejects(() -> new SearchRequest("*", "", start, start, 0, 100));
         rejects(() -> new SearchRequest("*", "", start, start.plusSeconds(10), 0, 501));
     }
@@ -67,7 +75,7 @@ public final class CoreTests {
                     "source":"worker","message":"retry"}}
                 ]}
                 """);
-        GraylogClient.Result parsed = GraylogClient.parseResult(response);
+        GraylogApi.Result parsed = GraylogClient.parseResult(response);
         eq(2L, parsed.total()); eq(2, parsed.events().size());
         LogEvent first = parsed.events().getFirst();
         eq("ERROR", first.level()); eq("12:42:08.162", first.displayTime()); eq("api", first.service("service"));
@@ -121,23 +129,23 @@ public final class CoreTests {
         Path root = Path.of("/work/project");
         LogEvent first = exceptionEvent("one", "InventoryUnavailableException", "/application/src/StockClient.php", 87);
         LogEvent second = exceptionEvent("two", "InventoryUnavailableException", "/application/src/StockClient.php", 87);
-        List<ExceptionSites.Site> grouped = ExceptionSites.build(List.of(first, second, first), connection, root);
+        List<ExceptionSites.Site> grouped = CoreTests.sites(List.of(first, second), connection, root);
         eq(1, grouped.size()); eq(2, grouped.getFirst().events().size());
         eq("InventoryUnavailableException", grouped.getFirst().types().getFirst());
         eq(new ExceptionSites.Location(Path.of("/work/project/src/StockClient.php"), 87), grouped.getFirst().location());
         LogEvent anotherThrow = exceptionEvent("three", "InventoryUnavailableException", "/application/src/StockClient.php", 103);
-        eq(2, ExceptionSites.build(List.of(first, anotherThrow), connection, root).size());
+        eq(2, CoreTests.sites(List.of(first, anotherThrow), connection, root).size());
         LogEvent otherType = exceptionEvent("four", "TypeError", "/application/src/StockClient.php", 87);
-        grouped = ExceptionSites.build(List.of(first, second, otherType), connection, root);
+        grouped = CoreTests.sites(List.of(first, second, otherType), connection, root);
         eq(1, grouped.size()); eq(2, grouped.getFirst().types().size()); eq(3, grouped.getFirst().events().size());
 
         JsonObject plain = json("{\"message\":\"Error during request\",\"level\":3,\"file\":\"/application/src/Logger.php\",\"line\":9}");
-        eq(0, ExceptionSites.build(List.of(new LogEvent("plain", "", plain)), connection, root).size());
+        eq(0, CoreTests.sites(List.of(new LogEvent("plain", "", plain)), connection, root).size());
         JsonObject traced = json("{\"level\":3,\"file\":\"/application/src/Logger.php\",\"line\":9}");
         traced.addProperty("full_message", "App\\Domain\\OrderException: Failed\n#0 /application/src/Order.php(42): place()");
         LogEvent event = new LogEvent("trace", "", traced);
         eq("App\\Domain\\OrderException", ExceptionSites.exceptionName(event));
-        eq(42, ExceptionSites.build(List.of(event), connection, root).getFirst().location().line());
+        eq(42, CoreTests.sites(List.of(event), connection, root).getFirst().location().line());
 
         JsonObject nested = json("""
                 {"exception":{"class":"OutOfStock","file":"/application/src/Stock.php","line":56,
@@ -145,20 +153,20 @@ public final class CoreTests {
                 """);
         event = new LogEvent("nested", "", nested);
         eq("OutOfStock", ExceptionSites.exceptionName(event));
-        eq(56, ExceptionSites.build(List.of(event), connection, root).getFirst().location().line());
+        eq(56, CoreTests.sites(List.of(event), connection, root).getFirst().location().line());
         eq(2, ExceptionSites.exceptionFrames(event).size());
 
         JsonObject outside = json("{}");
         outside.addProperty("full_message", "RuntimeException: Failed\n#0 /external/Library.php:3\n#1 /application/src/Worker.php:19");
-        eq(19, ExceptionSites.build(List.of(new LogEvent("outside", "", outside)), connection, root).getFirst().location().line());
+        eq(19, CoreTests.sites(List.of(new LogEvent("outside", "", outside)), connection, root).getFirst().location().line());
         LogEvent traversal = exceptionEvent("traversal", "RuntimeException", "/application/../../etc/secret.php", 1);
-        eq(0, ExceptionSites.build(List.of(traversal), connection, root).size());
+        eq(0, CoreTests.sites(List.of(traversal), connection, root).size());
         JsonObject unlocated = json("{\"exception_class\":\"RuntimeException\",\"message\":\"No location\"}");
-        eq(0, ExceptionSites.build(List.of(new LogEvent("none", "", unlocated)), connection, root).size());
+        eq(0, CoreTests.sites(List.of(new LogEvent("none", "", unlocated)), connection, root).size());
 
         LogEvent anonymousOne = exceptionEvent("", "RuntimeException", "/application/src/A.php", 1);
         JsonObject otherFields = anonymousOne.fields().deepCopy(); otherFields.addProperty("request_id", "different");
-        grouped = ExceptionSites.build(List.of(anonymousOne, new LogEvent("", "", otherFields)), connection, root);
+        grouped = CoreTests.sites(List.of(anonymousOne, new LogEvent("", "", otherFields)), connection, root);
         eq(2, grouped.getFirst().events().size());
     }
 
@@ -198,7 +206,7 @@ public final class CoreTests {
         server.start();
         String base = "http://127.0.0.1:" + server.getAddress().getPort();
         try (GraylogClient client = new GraylogClient(base + "/prefix/api", TOKEN)) {
-            List<GraylogClient.Stream> streams = client.streams(); eq("API", streams.getFirst().title()); eq("a", streams.getFirst().id());
+            List<GraylogApi.Stream> streams = client.streams(); eq("API", streams.getFirst().title()); eq("a", streams.getFirst().id());
             Instant start = Instant.parse("2026-01-01T12:00:00Z");
             SearchRequest request = new SearchRequest("message:\"a+b & тест\"", "stream-123", start, start.plusSeconds(900), 0, 100);
             eq(420L, client.search(request).total()); client.search(request.page(100));

@@ -40,7 +40,7 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
         report = Path.of(System.getProperty("graylog.smoke.report"));
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
             try {
-                ApplicationManager.getApplication().getService(PasswordSafeSettings.class).setProviderType(ProviderType.MEMORY_ONLY);
+                if (ApplicationManager.getApplication().getService(PasswordSafeSettings.class).getProviderType() != ProviderType.MEMORY_ONLY) throw new AssertionError("Smoke configuration must select memory-only Password Safe before startup");
                 seed();
                 later(this::open);
             } catch (Throwable error) { fail(error); }
@@ -88,7 +88,7 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
     private boolean ready() throws Exception {
         Object panel = panel();
         JTable events = (JTable) field(panel, "events");
-        if (events.getRowCount() == 0 || (boolean) field(panel, "busy") || field(panel, "periodIndex") == null) return false;
+        if (events.getRowCount() == 0 || (boolean) field(panel, "busy") || !((JLabel) field(panel, "indexStatus")).getText().startsWith("Whole period")) return false;
         for (int row = 0; row < events.getRowCount(); row++) {
             if (String.valueOf(events.getValueAt(row, 3)).contains("Invalid phone")) {
                 events.setRowSelectionInterval(row, row); break;

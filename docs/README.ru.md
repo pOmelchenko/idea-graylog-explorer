@@ -1,13 +1,13 @@
-[English](../README.md)
+[English](../README.md) · [Ревью и рефакторинг](review-2026-11-17.md)
 
 # Graylog Explorer — плагин JetBrains
 
 Независимый плагин для PhpStorm / IntelliJ IDEA **2026.3**. Интерфейс использует
-дерево подключений и streams, таблицу событий и панель подробностей. Версия 0.12.1.
+дерево подключений и streams, таблицу событий и панель подробностей. Версия 0.13.0.
 
 ## Установка
 
-1. Собрать проект или взять `build/distributions/graylog-jetbrains-0.12.1.zip`.
+1. Собрать проект или взять `build/distributions/graylog-jetbrains-0.13.0.zip`.
 2. В IDE открыть **Settings → Plugins → ⚙ → Install Plugin from Disk…**.
 3. Выбрать ZIP. Перезапустить IDE, если она предложит это сделать.
 4. Открыть **View → Tool Windows → Graylog**.
@@ -320,34 +320,35 @@ Local source root:  /home/user/project/back
 и `file.php(87)`, а также отдельные поля `file` / `line`. Пути с выходом за
 настроенный корень отклоняются.
 
-## Сборка без сети
+## Сборка
 
-Нужны Python 3.9+ и установленный PhpStorm / IntelliJ IDEA 2026.3 с JDK 25.
-Скрипт автоматически ищет PhpStorm и IDEA в стандартном каталоге Toolbox под Linux.
-Можно указать путь явно:
+Нужны JDK 25 и Gradle wrapper. Основной конвейер компилирует Java и Kotlin,
+запускает контрактные проверки и упаковывает установочный ZIP:
+
+```bash
+./gradlew check buildPlugin verifyPluginStructure verifyPlugin
+```
+
+SDK PhpStorm загружается в закреплённой версии. Для установленного SDK:
+
+```bash
+./gradlew -PideHome=/path/to/phpstorm check buildPlugin verifyPluginStructure verifyPlugin
+```
+
+`IDE_HOME` также поддерживается. Для компиляции опционального PHP-адаптера нужен
+SDK с PHP API; его классы не включаются в ZIP. Runtime Kotlin берётся из IDE.
+
+Удобная команда выбирает локальный SDK и вызывает тот же Gradle-конвейер:
 
 ```bash
 python3 build.py --ide-home /path/to/phpstorm
 ```
 
-Для сборки требуется установленный PhpStorm SDK: из него берётся compile-only API
-опционального PHP-адаптера. PHP API не включается в ZIP.
-Сборка компилирует Java-код против библиотек локальной IDE, запускает контрактные
-HTTP-тесты на loopback и создаёт установочный ZIP. Зависимости не скачиваются.
-JDK берётся из IDE либо `JAVA_HOME`. Для сборки без тестов есть `--skip-tests`.
-
-Альтернативная сборка Gradle:
-
-```bash
-export IDE_HOME=/path/to/phpstorm
-export JAVA_HOME="$IDE_HOME/jbr"
-./gradlew buildPlugin
-```
-
-Первый запуск wrapper скачивает Gradle 9.3.0, если его нет в кеше.
-Gradle использует обычный Java plugin и локальный SDK: `buildPlugin` упаковывает
-JAR в стандартную структуру ZIP JetBrains. В этой версии нет загрузки SDK,
-инструментации форм и автоматического запуска Plugin Verifier.
+Первый запуск загружает Gradle и зависимости. После заполнения кеша можно добавить
+`--offline`. `--skip-tests` предназначен для локальной разработки; перед публикацией
+нужны все проверки. Скрипт не выполняет подпись и не запускает Plugin Verifier,
+если тот не вызван явно через Gradle. Единственная версия плагина задаётся в
+`gradle.properties`; Gradle вставляет её в дескриптор готового архива.
 
 ## Локальная демонстрация
 
@@ -393,10 +394,18 @@ UI-проверка под Linux с Xvfb:
 ```bash
 python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme light
 python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme dark
+python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --reload
 ```
 
+На чистом EAP SDK старт может остановиться на соглашении JetBrains. Только после
+разрешения владельца можно передать `--accept-eap-agreement 3.1`: версия
+проверяется по встроенному документу, а согласие хранится в изолированных Java
+preferences теста. Другая версия требует нового разрешения. В CI версия 3.1
+разрешена владельцем репозитория.
+
 Скрипт запускает отдельный экземпляр IDE с собственными настройками, приватным
-виртуальным дисплеем и локальным mock API. Проверяет загрузку окна, авторизацию
+виртуальным дисплеем и локальным mock API. Memory-only Password Safe настраивается
+до старта IDE; тест не использует системное хранилище паролей. Проверяет загрузку окна, авторизацию
 через Password Safe, получение streams и событий, переход на строку PHP-файла.
 Тестовый startup hook добавляется только во временный JAR; в установочный ZIP
 он не входит. Отчёты и снимки экрана находятся в `build/reports/smoke/light/`

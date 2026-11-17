@@ -33,10 +33,10 @@ public final class ExceptionSites {
             this.connection = connection.copy(); this.projectRoot = projectRoot; this.sampleLimit = sampleLimit;
         }
         public void accept(LogEvent event) {
-            String name = exceptionName(event);
-            if (name.isBlank()) return;
+            Observations observed = observations(event, connection, projectRoot);
+            if (!observed.exception()) return;
             exceptionCount++;
-            observations(event, connection, projectRoot).forEach((location, details) -> {
+            observed.locations().forEach((location, details) -> {
                 Summary summary = sites.computeIfAbsent(location, ignored -> new Summary());
                 summary.count++; details.forEach(detail -> summary.types.add(detail.type()));
                 if (summary.examples.size() < sampleLimit) summary.examples.add(event);
@@ -58,23 +58,20 @@ public final class ExceptionSites {
 
     private ExceptionSites() { }
 
-    public static Location location(LogEvent event, Connection connection, Path projectRoot) {
-        return locations(event, connection, projectRoot).stream().findFirst().orElse(null);
-    }
-
     public static List<Location> locations(LogEvent event, Connection connection, Path projectRoot) {
-        return List.copyOf(observations(event, connection, projectRoot).keySet());
+        return List.copyOf(observations(event, connection, projectRoot).locations().keySet());
     }
 
     public static List<Detail> detailsAt(LogEvent event, Connection connection, Path projectRoot, Location location) {
-        return List.copyOf(observations(event, connection, projectRoot).getOrDefault(location, new LinkedHashSet<>()));
+        return List.copyOf(observations(event, connection, projectRoot).locations().getOrDefault(location, new LinkedHashSet<>()));
     }
 
-    private static Map<Location, LinkedHashSet<Detail>> observations(LogEvent event, Connection connection, Path projectRoot) {
+    private record Observations(boolean exception, Map<Location, LinkedHashSet<Detail>> locations) { }
+    private static Observations observations(LogEvent event, Connection connection, Path projectRoot) {
         Map<Location, LinkedHashSet<Detail>> result = new LinkedHashMap<>();
-        String name = exceptionName(event);
-        if (name.isBlank()) return result;
         var chain = ExceptionDetails.chain(event);
+        String name = exceptionName(event, chain);
+        if (name.isBlank()) return new Observations(false, result);
         if (chain.isEmpty()) addObservation(result, new Detail(name, event.text("message")), exceptionFrames(event), connection, projectRoot);
         else for (int i = 0; i < chain.size(); i++) {
             ExceptionDetails.Part part = chain.get(i);
@@ -87,7 +84,7 @@ public final class ExceptionSites {
             }
             addObservation(result, new Detail(part.type(), part.message()), frames, connection, projectRoot);
         }
-        return result;
+        return new Observations(true, result);
     }
     private static void addObservation(Map<Location, LinkedHashSet<Detail>> result, Detail detail,
                                        List<SourceLocation> frames, Connection connection, Path projectRoot) {
@@ -99,23 +96,9 @@ public final class ExceptionSites {
         }
     }
 
-    public static List<Site> build(List<LogEvent> events, Connection connection, Path projectRoot) {
-        Map<Location, Builder> sites = new LinkedHashMap<>();
-        for (LogEvent event : events) {
-            observations(event, connection, projectRoot).forEach((location, details) -> {
-                Builder builder = sites.computeIfAbsent(location, ignored -> new Builder());
-                details.forEach(detail -> builder.types.add(detail.type())); builder.events.putIfAbsent(event.identity(), event);
-            });
-        }
-        return sites.entrySet().stream().map(entry -> new Site(entry.getKey(), List.copyOf(entry.getValue().types),
-                        List.copyOf(entry.getValue().events.values())))
-                .sorted(Comparator.comparing((Site site) -> site.location.file.toString()).thenComparingInt(site -> site.location.line))
-                .toList();
-    }
-
-    public static String exceptionName(LogEvent event) {
+    public static String exceptionName(LogEvent event) { return exceptionName(event, ExceptionDetails.chain(event)); }
+    private static String exceptionName(LogEvent event, List<ExceptionDetails.Part> chain) {
         String explicit = event.first("exception_class", "exception_type", "exceptionClass", "error_type", "error.type");
-        var chain = ExceptionDetails.chain(event);
         if (explicit.isBlank() && !chain.isEmpty()) explicit = chain.getFirst().type();
         if (explicit.isBlank() && TYPE.matcher(event.text("ctxt_category")).matches()) explicit = event.text("ctxt_category");
         if (!explicit.isBlank()) return explicit;
@@ -145,9 +128,5 @@ public final class ExceptionSites {
             int number = Integer.parseInt(line);
             if (!file.isBlank() && number > 0) frames.add(new SourceLocation(file, number));
         } catch (NumberFormatException ignored) { }
-    }
-    private static final class Builder {
-        final LinkedHashSet<String> types = new LinkedHashSet<>();
-        final LinkedHashMap<String, LogEvent> events = new LinkedHashMap<>();
     }
 }

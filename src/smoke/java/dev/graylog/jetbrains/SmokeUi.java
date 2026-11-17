@@ -16,6 +16,12 @@ import java.nio.file.StandardCopyOption;
 /** Exercises real toolbar actions and captures only the isolated test IDE. */
 @SuppressWarnings("removal")
 final class SmokeUi {
+    static Object field(Object target, String name) {
+        try { var field = target.getClass().getDeclaredField(name); field.setAccessible(true); return field.get(target); }
+        catch (ReflectiveOperationException error) { throw new IllegalStateException(error); }
+    }
+    static PeriodIndexController.State index(Object panel) { return ((PeriodIndexController) field(panel, "index")).state(); }
+    static SourceCatalog.State sources(Object panel) { return ((SourceCatalog) field(panel, "catalog")).state(); }
     static boolean hasToolbarAction(Container parent, String name) { return findAction(parent, name) != null; }
     static void clickToolbar(Container parent, String name) {
         AnAction action = findAction(parent, name);

@@ -27,15 +27,16 @@ jobs:
           echo "IDE_HOME=$(cat build/ide-home.txt)" >> "$GITHUB_ENV"
       - name: Install Xvfb
         run: sudo apt-get update && sudo apt-get install -y xvfb
+      # Repository owner authorized EAP agreement 3.1 for isolated CI tests. A new version requires review.
       - name: Build and exercise the real IDE
         env:
           SMOKE_THEME: ${{ matrix.theme }}
         run: |
           python3 build.py --ide-home "$IDE_HOME"
-          python3 scripts/smoke_test.py --ide-home "$IDE_HOME" --theme "$SMOKE_THEME" --with-legacy-prototype
+          python3 scripts/smoke_test.py --ide-home "$IDE_HOME" --theme "$SMOKE_THEME" --with-legacy-prototype --accept-eap-agreement 3.1
       - name: Update and reload without restarting the IDE
         if: matrix.theme == 'light'
-        run: python3 scripts/smoke_test.py --ide-home "$IDE_HOME" --reload
+        run: python3 scripts/smoke_test.py --ide-home "$IDE_HOME" --reload --accept-eap-agreement 3.1
       - name: Upload synthetic UI reports
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

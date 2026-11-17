@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 public record LogEvent(String id, String index, JsonObject fields, LogFormat format) {
+    private static final DateTimeFormatter DISPLAY_TIME = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
     public LogEvent(String id, String index, JsonObject fields) { this(id, index, fields, new LogFormat()); }
     public JsonElement element(String key) {
         String configured = format.configuredName(key);
@@ -70,8 +71,7 @@ public record LogEvent(String id, String index, JsonObject fields, LogFormat for
 
     public String displayTime() {
         Instant time = timestamp();
-        return time == null ? text("timestamp") : DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
-                .withZone(ZoneOffset.UTC).format(time);
+        return time == null ? text("timestamp") : DISPLAY_TIME.format(time);
     }
 
     public String stackTrace() {

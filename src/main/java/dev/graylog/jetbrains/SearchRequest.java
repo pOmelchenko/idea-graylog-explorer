@@ -7,7 +7,7 @@ public record SearchRequest(String query, String streamId, Instant from, Instant
         query = query == null || query.isBlank() ? "*" : query.trim();
         streamId = streamId == null ? "" : streamId;
         if (from == null || to == null || !from.isBefore(to)) throw new IllegalArgumentException("Invalid time range.");
-        if (offset < 0 || limit < 1 || limit > 500 || offset + limit > 10000) {
+        if (offset < 0 || limit < 1 || limit > 500 || offset > 10000 - limit) {
             throw new IllegalArgumentException("Search supports up to 10,000 events, in pages of 1–500.");
         }
     }

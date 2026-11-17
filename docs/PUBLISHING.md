@@ -4,7 +4,7 @@ The source repository is https://github.com/pOmelchenko/idea-graylog-explorer. U
 
 ## Release preparation
 
-1. Update `pluginVersion` in `gradle.properties`, the matching fallback `<version>` in `plugin.xml`, change notes and `CHANGELOG.md`. The Gradle build patches the descriptor from the property; the Python builder reads the same property.
+1. Update `pluginVersion` in `gradle.properties`, change notes and `CHANGELOG.md`. Gradle writes the version into the packaged descriptor; the source `plugin.xml` does not duplicate it. The Python convenience command invokes that same Gradle pipeline.
 2. Run `./gradlew check buildPlugin verifyPluginStructure verifyPlugin` with JDK 25. CI must pass against the pinned SDKs. Do not widen `since-build` / `until-build` without validating the new range.
 3. Run light/dark isolated UI smoke tests for UI changes. Use only synthetic demo data in screenshots.
 4. Review [PRIVACY.md](../PRIVACY.md), the MIT license, vendor contact and naming/trademark permissions. A disclaimer is not a grant of rights to third-party trademarks.
@@ -29,7 +29,7 @@ Metadata URLs:
 - License: https://github.com/pOmelchenko/idea-graylog-explorer/blob/main/LICENSE
 - Privacy: https://github.com/pOmelchenko/idea-graylog-explorer/blob/main/PRIVACY.md
 
-The public plugin ID is `dev.omelchenko.graylogexplorer`. Keep it stable once published. The earlier local prototype used a different ID and must be uninstalled before installing this one.
+The public plugin ID is `dev.omelchenko.graylogexplorer`. Keep it stable once published. The earlier local prototype used a different ID and must be disabled or uninstalled before using this one.
 
 ## Automated updates after the first upload
 

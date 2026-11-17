@@ -31,13 +31,8 @@ import java.util.Set;
 import java.util.function.LongConsumer;
 import java.util.stream.Collectors;
 
-public final class GraylogClient implements AutoCloseable {
+public final class GraylogClient implements GraylogApi {
     private static final DateTimeFormatter API_TIME = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
-    public record Stream(String id, String title) { @Override public String toString() { return title; } }
-    public record Result(List<LogEvent> events, long total) { }
-    public record PeriodIndex(List<ExceptionSites.Site> sites, long messages, long exceptions) { }
-    public record SourceValue(String name, long count) { }
-    public record Sources(List<SourceValue> values, boolean limited) { }
     public static final int SOURCE_LIMIT = 1000;
     static final List<String> EXPORT_FIELDS = List.of("timestamp", "_id", "_index", "level", "level_name", "severity", "source",
             "message", "full_message", "exception", "ctxt_exception", "ctxt_category", "exception_class", "exception_type", "exceptionClass", "error_type", "error.type",

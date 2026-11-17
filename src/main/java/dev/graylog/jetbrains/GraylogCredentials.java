@@ -5,6 +5,10 @@ import com.intellij.ide.passwordSafe.PasswordSafe;
 
 final class GraylogCredentials {
     private GraylogCredentials() { }
+    static final CredentialUpdate.Store STORE = new CredentialUpdate.Store() {
+        @Override public String load(String key) { return GraylogCredentials.load(key); }
+        @Override public void save(String key, String value) { GraylogCredentials.save(key, value); }
+    };
     private static CredentialAttributes attributes(String id) { return new CredentialAttributes("Graylog Explorer: " + id); }
     // These calls must only run on a background thread: OS password stores may block.
     static String load(String id) { return PasswordSafe.getInstance().getPassword(attributes(id)); }

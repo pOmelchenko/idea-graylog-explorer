@@ -18,12 +18,12 @@ final class SourceTree {
     record Status(String text) { @Override public String toString() { return text; } }
     record Group(String scope, String summary) { @Override public String toString() { return "Sources"; } }
 
-    static DefaultMutableTreeNode group(String scope, String summary, List<GraylogClient.SourceValue> values,
+    static DefaultMutableTreeNode group(String scope, String summary, List<GraylogApi.SourceValue> values,
                                          Set<String> selected, String needle, boolean showAll) {
         var group = new DefaultMutableTreeNode(new Group(scope, summary));
-        Map<String, GraylogClient.SourceValue> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()));
+        Map<String, GraylogApi.SourceValue> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()));
         values.forEach(value -> sorted.put(value.name(), value));
-        selected.forEach(name -> sorted.putIfAbsent(name, new GraylogClient.SourceValue(name, -1)));
+        selected.forEach(name -> sorted.putIfAbsent(name, new GraylogApi.SourceValue(name, -1)));
         if (showAll || "all sources".contains(needle)) group.add(new DefaultMutableTreeNode(new Entry(null, -1)));
         sorted.values().stream().filter(value -> showAll || value.name().toLowerCase(Locale.ROOT).contains(needle))
                 .forEach(value -> group.add(new DefaultMutableTreeNode(new Entry(value.name(), value.count()))));
@@ -44,11 +44,8 @@ final class SourceTree {
                         append(entry.toString());
                         if (entry.name() != null) setIcon(ExplorerUi.colorIcon(SourceColors.color(entry.name(), options.get().sourceColors)));
                         if (entry.count() >= 0) append("  " + String.format(Locale.ROOT, "%,d", entry.count()), SimpleTextAttributes.GRAYED_ATTRIBUTES);
-                    } else if (user instanceof Group group) {
-                        setIcon(AllIcons.Nodes.Folder); append("Sources"); append("  " + group.scope(), SimpleTextAttributes.GRAYED_ATTRIBUTES);
                     }
-                    if (user instanceof Status status) { append(status.text(), SimpleTextAttributes.GRAYED_ATTRIBUTES); setIcon(null); }
-                    setToolTipText(user instanceof Group group ? group.summary() : user.toString());
+                    setToolTipText(ExplorerUi.plainTooltip(user.toString()));
                     setOpaque(false); setIconOpaque(false);
                 }
             };
@@ -66,7 +63,7 @@ final class SourceTree {
                 if (user instanceof Group || user instanceof Status) return groupLabel.getTreeCellRendererComponent(tree, value, chosen, expanded, leaf, index, focus);
                 if (!(user instanceof Entry entry)) return nativeRenderer.getTreeCellRendererComponent(tree, value, chosen, expanded, leaf, index, focus);
                 check.setSelected(entry.name() == null ? selected.get().isEmpty() : selected.get().contains(entry.name()));
-                check.setEnabled(enabled.get()); row.setToolTipText(entry.toString() + (entry.count() < 0 ? "" : " · " + entry.count() + " messages"));
+                check.setEnabled(enabled.get()); row.setToolTipText(ExplorerUi.plainTooltip(entry.toString() + (entry.count() < 0 ? "" : " · " + entry.count() + " messages")));
                 label.getTreeCellRendererComponent(tree, value, chosen, expanded, leaf, index, focus);
                 return row;
             }

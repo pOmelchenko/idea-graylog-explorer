@@ -43,7 +43,12 @@ public final class GraylogIdeSettings implements PersistentStateComponent<Graylo
         SettingsEvents.fire(null);
     }
     public void save(ServerConnection server) {
-        synchronized (this) { data.connections.removeIf(c -> c.id.equals(server.id)); data.connections.add(server.copy()); data.removedConnections.remove(server.id); }
+        synchronized (this) {
+            int position = -1;
+            for (int i = 0; i < data.connections.size(); i++) if (data.connections.get(i).id.equals(server.id)) { position = i; break; }
+            if (position < 0) data.connections.add(server.copy()); else data.connections.set(position, server.copy());
+            data.removedConnections.remove(server.id);
+        }
         SettingsEvents.fire(null);
     }
     public void remove(String id) {

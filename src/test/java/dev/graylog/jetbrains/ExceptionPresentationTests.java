@@ -14,7 +14,7 @@ final class ExceptionPresentationTests {
         LogEvent first = event(fixture, "first", "+12025550123");
         LogEvent second = event(fixture, "second", "+12025550124");
         LogEvent third = event(fixture, "third", "+12025550125");
-        var sites = ExceptionSites.build(List.of(first), connection, root);
+        var sites = CoreTests.sites(List.of(first), connection, root);
         var domain = at(sites, 46); var application = at(sites, 91); var wrapper = at(sites, 59);
         eq(List.of("Invalid phone: +12025550123"), ExceptionPresentation.messages(domain, connection, root, first));
         eq(List.of("Phone number validation failed."), ExceptionPresentation.messages(application, connection, root, first));
@@ -34,14 +34,14 @@ final class ExceptionPresentationTests {
         eq(List.of("Invalid phone: +12025550123"), ExceptionPresentation.messages(domain, connection, root, new LogEvent("different", "", different)));
         chain.getAsJsonObject("previous").getAsJsonObject("previous").addProperty("file", chain.get("file").getAsString());
         different.addProperty("ctxt_exception", chain.toString()); LogEvent shared = new LogEvent("shared", "", different);
-        var sharedSite = at(ExceptionSites.build(List.of(shared), connection, root), 59);
+        var sharedSite = at(CoreTests.sites(List.of(shared), connection, root), 59);
         eq(List.of("Invalid phone: +12025550123", "Invalid phone number."), ExceptionPresentation.messages(sharedSite, connection, root, shared));
         JsonObject simple = JsonParser.parseString("{\"exception_class\":\"Error\",\"exception_file\":\"/application/src/Worker.php\",\"exception_line\":9,\"message\":\"value=bad\\nnext\\tline\"}").getAsJsonObject();
         LogEvent legacy = new LogEvent("legacy", "", simple);
-        var legacySite = ExceptionSites.build(List.of(legacy), connection, root).getFirst();
+        var legacySite = CoreTests.sites(List.of(legacy), connection, root).getFirst();
         eq(List.of("value=bad next line"), ExceptionPresentation.messages(legacySite, connection, root, legacy));
         simple.addProperty("message", "🙂".repeat(600));
-        var longSite = ExceptionSites.build(List.of(legacy), connection, root).getFirst();
+        var longSite = CoreTests.sites(List.of(legacy), connection, root).getFirst();
         var messages = ExceptionPresentation.messages(longSite, connection, root, legacy);
         eq(501, messages.getFirst().codePointCount(0, messages.getFirst().length()));
         eq("Graylog: " + "🙂".repeat(160) + "…", ExceptionPresentation.inline(longSite, messages));

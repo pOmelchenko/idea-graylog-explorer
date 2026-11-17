@@ -1,11 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.13.0 — 2026-11-17
+
+- Split Explorer into connections, events and event-details views with independent source catalog and period-index controllers.
+- Introduce Graylog API and background-task ports; add deterministic cache, cancellation, retry and stale-completion tests.
+- Use Kotlin for the controllers, native Settings forms and connection dialog. Retain persistent settings formats and plugin IDs.
+- Use one Gradle Java/Kotlin build; the Python command delegates to Gradle and UI tests consume the actual packaged JARs.
+- Separate Password Safe update/rollback planning from Settings UI; preserve connection/profile order and invalidate connection tests on selection changes.
+- Remove obsolete page-only grouping, unreachable renderer branches and duplicated smoke reflection helpers. Reuse formatters and avoid repeated exception decoding during indexing.
+- Fix pagination integer overflow, source-filter self replacement and HTML interpretation in plain log cells and tooltips.
+
+## 0.12.1 — 2026-11-17
 
 - Verify restartless updates and repeated dynamic reloads with an independent test controller and an unmodified production JAR.
 - Document dynamic update support and the IDE fallback when unloading fails.
-
-## 0.12.1 — 2026-11-17
 
 - Declare incompatibility with the old `dev.graylog.jetbrains` prototype so IDE startup does not register the same Graylog tool window and action twice.
 - Add an isolated UI fixture that keeps the prototype installed but disabled while testing the public plugin.
