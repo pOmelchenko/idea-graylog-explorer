@@ -58,7 +58,7 @@ public final class GraylogSettings implements PersistentStateComponent<GraylogSe
     public static GraylogSettings get(Project project) {
         GraylogSettings settings = project.getService(GraylogSettings.class); settings.ensureMigrated(); return settings;
     }
-    @Override public Data getState() { ensureMigrated(); synchronized (this) { return data.copy(); } }
+    @Override public @org.jetbrains.annotations.NotNull Data getState() { ensureMigrated(); synchronized (this) { return data.copy(); } }
     @Override public synchronized void loadState(Data state) { data = state.copy(); }
     public void save(Connection connection) {
         synchronized (this) { data.selectedConnection = connection.id; }
@@ -80,8 +80,18 @@ public final class GraylogSettings implements PersistentStateComponent<GraylogSe
         return mode == 0 ? GraylogIdeSettings.get().getState().options.highlightByDefault : mode == 1;
     }
     public void replace(Data state) {
-        state.validate(); synchronized (this) { data = state.copy(); data.schemaVersion = 1; data.connections.clear(); }
-        SettingsEvents.fire(project);
+        state.validate(); Data before, after;
+        synchronized (this) { before = data.copy(); data = state.copy(); data.schemaVersion = 1; data.connections.clear(); after = data.copy(); }
+        SettingsEvents.project(project, SettingsChange.project(before, after));
+    }
+    public void applyProjectSettings(ProjectSettingsDraft expected, ProjectSettingsDraft draft) {
+        Data before, after;
+        synchronized (this) {
+            if (!expected.matches(data)) throw new IllegalStateException("Project settings changed while this page was open. Reopen Settings before applying your changes.");
+            before = data.copy(); after = draft.merge(data, expected.getPreferredConnection()); after.validate();
+            data = after.copy(); data.schemaVersion = 1; data.connections.clear();
+        }
+        SettingsEvents.project(project, SettingsChange.project(before, after));
     }
     public List<Connection> connections() {
         Data local = getState();
@@ -101,7 +111,7 @@ public final class GraylogSettings implements PersistentStateComponent<GraylogSe
 
     private synchronized void ensureMigrated() {
         if (data.schemaVersion >= 1) return;
-        GraylogIdeSettings.get().migrateProject(data); SettingsEvents.fire(null);
+        GraylogIdeSettings.get().migrateProject(data); SettingsEvents.ide(SettingsChange.all());
     }
     static void migrate(Data local, GraylogIdeSettings.Data global) {
         if (local.schemaVersion >= 1) return;

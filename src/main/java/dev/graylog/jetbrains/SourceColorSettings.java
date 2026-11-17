@@ -19,7 +19,7 @@ final class SourceColorSettings extends JPanel {
         JPanel heading = new JPanel(new BorderLayout(0, 8)); heading.add(enabled, BorderLayout.NORTH);
         add(heading, BorderLayout.NORTH);
         table.setShowGrid(false); table.setStriped(true); table.setRowHeight(JBUI.scale(24)); table.setIntercellSpacing(JBUI.size(0, 0));
-        table.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+        table.setDefaultRenderer(Object.class, new ExplorerUi.PlainCellRenderer() {
             @Override public Component getTableCellRendererComponent(JTable t, Object value, boolean selected, boolean focus, int row, int column) {
                 super.getTableCellRendererComponent(t, value, selected, false, row, column); setBorder(JBUI.Borders.empty(0, 8)); setIcon(null);
                 if (column == 1) try { setIcon(ExplorerUi.colorIcon(Color.decode(value.toString()))); } catch (RuntimeException ignored) { }
@@ -40,12 +40,22 @@ final class SourceColorSettings extends JPanel {
     private void stopEditing() { if (table.isEditing()) table.getCellEditor().stopCellEditing(); }
     boolean isEditing() { return table.isEditing(); }
     void reset(IdeOptions options) { enabled.setSelected(options.sourceStripes); model.rows.clear(); options.sourceColors.forEach((key,value) -> model.rows.add(new String[]{key,value})); model.fireTableDataChanged(); }
+    boolean isModified(IdeOptions options) {
+        if (isEditing()) return true;
+        try { return enabled.isSelected() != options.sourceStripes || !overrides().equals(options.sourceColors); }
+        catch (IllegalArgumentException invalid) { return true; }
+    }
     void collect(IdeOptions options) {
-        stopEditing(); options.sourceStripes = enabled.isSelected(); options.sourceColors.clear();
+        stopEditing(); Map<String, String> values = overrides();
+        options.sourceStripes = enabled.isSelected(); options.sourceColors = values;
+    }
+    private Map<String, String> overrides() {
+        Map<String, String> values = new LinkedHashMap<>();
         for (String[] row : model.rows) {
             if (row[0].isBlank()) throw new IllegalArgumentException("Source names in color overrides must not be blank.");
-            if (options.sourceColors.put(row[0].trim(), row[1].trim()) != null) throw new IllegalArgumentException("Duplicate source color: " + row[0]);
+            if (values.put(row[0].trim(), row[1].trim()) != null) throw new IllegalArgumentException("Duplicate source color: " + row[0]);
         }
+        return values;
     }
     private static final class Model extends AbstractTableModel {
         final List<String[]> rows = new ArrayList<>();

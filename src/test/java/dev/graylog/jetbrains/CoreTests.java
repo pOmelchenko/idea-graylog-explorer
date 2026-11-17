@@ -35,6 +35,7 @@ public final class CoreTests {
         assertions += ExplorerPresentationTests.run();
         assertions += SourceFilterTests.run();
         assertions += ControllerTests.run();
+        assertions += SettingsModelTests.run();
         assertions += CredentialUpdateTests.run();
         System.out.println("PASS: " + assertions + " assertions (URLs, queries, event parsing, exception locations, path mapping, HTTP contracts and cancellation)");
     }

@@ -21,7 +21,7 @@ final class ChainSmoke {
         Timer wait = new Timer(200, null);
         wait.addActionListener(e -> {
             try {
-                if (!(Boolean) SmokeUi.field(panel, "busy") && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING) && SmokeUi.index(panel).getResult() != null) {
+                if (!(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING) && SmokeUi.index(panel).getResult() != null) {
                     wait.stop();
                     String text = ((JTextArea) SmokeUi.field(SmokeUi.field(panel, "inspector"), "rawStack")).getText();
                     if (!text.contains("Caused by: Demo\\Profile") || !text.contains("(code 723)") || text.contains("{\"")) throw new AssertionError("Yii trace is not readable: " + text);

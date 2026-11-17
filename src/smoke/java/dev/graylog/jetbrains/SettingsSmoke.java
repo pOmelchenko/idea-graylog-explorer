@@ -96,7 +96,11 @@ final class SettingsSmoke {
                 ((JTextField) SmokeUi.field(local, "requestId")).setText("ctx.request_id");
                 ((JComboBox<?>) SmokeUi.field(local, "highlight")).setSelectedIndex(1);
                 check(local.isModified(), "Project override detection");
+                var workspace = GraylogSettings.get(project); var history = workspace.getState();
+                workspace.remember(history.selectedConnection, "runtime query while Settings is open", 300); workspace.rememberPageSize(500);
                 local.apply(); check(!local.isModified(), "Project Apply resets modification state");
+                check(workspace.getState().lastQuery.equals("runtime query while Settings is open") && workspace.getState().pageSize == 500, "Settings Apply preserves concurrent workspace history");
+                workspace.remember(history.selectedConnection, history.lastQuery, history.rangeSeconds); workspace.rememberPageSize(history.pageSize);
                 check(GraylogSettings.get(project).connections().getFirst().fields.requestIdField.equals("ctx.request_id"), "Effective project field format");
                 profile.setSelectedIndex(0); profile.setSelectedIndex(1);
                 check(((JTextField) SmokeUi.field(local, "requestId")).getText().equals("ctx.request_id"), "Override survives profile switching");
@@ -109,7 +113,7 @@ final class SettingsSmoke {
                 check(!appXml.contains("ctx.request_id") && projectXml.contains("ctx.request_id"), "Project format stored only in project XML");
                 check(!appXml.contains("demo-token") && !projectXml.contains("demo-token"), "Tokens never serialized");
                 await(report, () -> ((IdeOptions) SmokeUi.field(explorer, "ideOptions")).liveIntervalSeconds == 9
-                        && !(Boolean) SmokeUi.field(explorer, "busy") && SmokeUi.index(explorer).getResult() != null,
+                        && !(SmokeUi.search(explorer).getPhase() == SearchController.Phase.LOADING) && SmokeUi.index(explorer).getResult() != null,
                         () -> nativeSettings(project, report, complete), "Explorer reload after Apply");
             }, "Testing Graylog connection");
         } catch (Throwable e) { fail(report, e); }

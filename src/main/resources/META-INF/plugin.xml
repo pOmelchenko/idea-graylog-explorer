@@ -28,6 +28,14 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.14.0</b></p>
+      <ul>
+        <li>Separate submitted search, paging and exception examples into a Kotlin controller with immutable operation settings.</li>
+        <li>Apply scoped Settings changes without unnecessary searches; preserve the submitted window and unsubmitted query draft.</li>
+        <li>Update editor marks by file and retain unchanged decorations, with per-editor PHP value lifecycle.</li>
+        <li>Use Kotlin DSL bindings for IDE/project Settings and preserve workspace history on Apply.</li>
+      </ul>
+      <p><b>0.13.0</b></p>
       <ul>
         <li>Separate Explorer views and background controllers; preserve query, source and time scope.</li>
         <li>Use native Kotlin UI DSL forms for connections and settings.</li>

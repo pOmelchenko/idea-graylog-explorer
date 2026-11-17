@@ -31,33 +31,39 @@ public final class GraylogIdeSettings implements PersistentStateComponent<Graylo
     }
     private Data data = new Data();
     public static GraylogIdeSettings get() { return ApplicationManager.getApplication().getService(GraylogIdeSettings.class); }
-    @Override public synchronized Data getState() { return data.copy(); }
+    @Override public synchronized @org.jetbrains.annotations.NotNull Data getState() { return data.copy(); }
     @Override public synchronized void loadState(Data state) { data = state.copy(); }
     public void replace(Data state) {
-        state.validate();
+        state.validate(); Data before, after;
         synchronized (this) {
+            before = data.copy();
             for (ServerConnection old : data.connections) if (state.connections.stream().noneMatch(c -> c.id.equals(old.id))
                     && !state.removedConnections.contains(old.id)) state.removedConnections.add(old.id);
-            data = state.copy();
+            data = state.copy(); after = data.copy();
         }
-        SettingsEvents.fire(null);
+        SettingsEvents.ide(SettingsChange.ide(before, after));
     }
     public void save(ServerConnection server) {
+        Data before, after;
         synchronized (this) {
+            before = data.copy();
             int position = -1;
             for (int i = 0; i < data.connections.size(); i++) if (data.connections.get(i).id.equals(server.id)) { position = i; break; }
             if (position < 0) data.connections.add(server.copy()); else data.connections.set(position, server.copy());
-            data.removedConnections.remove(server.id);
+            data.removedConnections.remove(server.id); after = data.copy();
         }
-        SettingsEvents.fire(null);
+        SettingsEvents.ide(SettingsChange.ide(before, after));
     }
     public void remove(String id) {
+        Data before, after;
         synchronized (this) {
+            before = data.copy();
             data.connections.removeIf(c -> c.id.equals(id));
             if (!data.removedConnections.contains(id)) data.removedConnections.add(id);
             if (data.options.defaultConnection.equals(id)) data.options.defaultConnection = "";
+            after = data.copy();
         }
-        SettingsEvents.fire(null);
+        SettingsEvents.ide(SettingsChange.ide(before, after));
     }
 
     static Map<String, String> mergeLegacy(Data global, List<Connection> legacy) {

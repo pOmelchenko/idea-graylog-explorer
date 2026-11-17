@@ -15,7 +15,7 @@ final class SourcesSmoke {
     static void run(Project project, GraylogPanel panel, Path report, Runnable done) {
         panel.searchText("request_id:\"abc-123\"");
         await(report, () -> ready(panel) && ((JTable) SmokeUi.field(panel, "events")).getRowCount() == 100, () -> {
-            SearchRequest baseline = (SearchRequest) SmokeUi.field(panel, "loadedRequest");
+            SearchRequest baseline = (SearchRequest) SmokeUi.loadedRequest(panel);
             JTable events = (JTable) SmokeUi.field(panel, "events");
             for (int i = 0; i < events.getRowCount(); i++) if (events.getValueAt(i, 2).equals("archive-worker")) throw new AssertionError("Fixture's hidden source reached the first page");
             open(panel);
@@ -27,14 +27,14 @@ final class SourcesSmoke {
                 toggle(popup, "archive-worker"); toggle(popup, "demo-worker");
                 button((Container) SmokeUi.field(popup, "body"), "Apply").doClick();
                 await(report, () -> ready(panel) && events.getRowCount() == 3, () -> {
-                    SearchRequest selected = (SearchRequest) SmokeUi.field(panel, "loadedRequest");
+                    SearchRequest selected = (SearchRequest) SmokeUi.loadedRequest(panel);
                     if (!selected.query().contains("source:\"archive-worker\" OR source:\"demo-worker\"") || !selected.from().equals(baseline.from()) || !selected.to().equals(baseline.to())) throw new AssertionError("Source OR filter lost its query/time window");
                     for (int i = 0; i < events.getRowCount(); i++) if (!Set.of("archive-worker", "demo-worker").contains(events.getValueAt(i, 2))) throw new AssertionError("Filtered table contains another source");
                     GraylogApi.PeriodIndex index = (GraylogApi.PeriodIndex) SmokeUi.index(panel).getResult();
                     if (index.messages() != 3 || index.exceptions() != 1 || index.sites().size() != 1) throw new AssertionError("Whole-period exception marks did not follow the source filter");
                     screenshot(report.resolve("sources-selected.png"));
                     SmokeUi.chooseDropdown(panel, "Page size", "250");
-                    await(report, () -> ready(panel) && ((SearchRequest) SmokeUi.field(panel, "loadedRequest")).limit() == 250, () -> {
+                    await(report, () -> ready(panel) && ((SearchRequest) SmokeUi.loadedRequest(panel)).limit() == 250, () -> {
                         if (SmokeUi.index(panel).getResult() != index || events.getRowCount() != 3) throw new AssertionError("Page size lost the source filter or restarted the period index");
                         open(panel);
                         await(report, () -> catalogReady(panel), () -> {
@@ -42,13 +42,13 @@ final class SourcesSmoke {
                             if (((java.util.List<?>) SmokeUi.field(again, "available")).size() != 4) throw new AssertionError("Sources list was narrowed by its own selection");
                             button((Container) SmokeUi.field(again, "body"), "All sources").doClick();
                             await(report, () -> ready(panel) && events.getRowCount() == 128, () -> {
-                                if (!((SearchRequest) SmokeUi.field(panel, "loadedRequest")).query().equals(baseline.query())) throw new AssertionError("Clearing sources did not restore the base query");
-                                Object beforeCancel = SmokeUi.field(panel, "loadedRequest"), indexBeforeCancel = SmokeUi.index(panel).getResult();
+                                if (!((SearchRequest) SmokeUi.loadedRequest(panel)).query().equals(baseline.query())) throw new AssertionError("Clearing sources did not restore the base query");
+                                Object beforeCancel = SmokeUi.loadedRequest(panel), indexBeforeCancel = SmokeUi.index(panel).getResult();
                                 open(panel);
                                 await(report, () -> catalogReady(panel), () -> {
                                     Object cancelled = SmokeUi.field(panel, "sourcePopup"); toggle(cancelled, "archive-worker");
                                     button((Container) SmokeUi.field(cancelled, "body"), "Cancel").doClick();
-                                    if (SmokeUi.field(panel, "loadedRequest") != beforeCancel || SmokeUi.index(panel).getResult() != indexBeforeCancel || !((SourceFilter) SmokeUi.field(panel, "sourceFilter")).values().isEmpty()) throw new AssertionError("Cancel applied a source draft");
+                                    if (SmokeUi.loadedRequest(panel) != beforeCancel || SmokeUi.index(panel).getResult() != indexBeforeCancel || !((SourceFilter) SmokeUi.field(panel, "sourceFilter")).values().isEmpty()) throw new AssertionError("Cancel applied a source draft");
                                     SmokeUi.chooseDropdown(panel, "Page size", "100");
                                     await(report, () -> ready(panel) && events.getRowCount() == 100, () -> {
                                         Files.writeString(report.resolve("sources-result.txt"), "PASS: Aggregation discovered archive-worker beyond the first 100 rows. Multi-source OR returned three server-filtered events and one exception origin. Page size retained the filter/index; the facet excluded its own selection. Clear and Cancel preserved base query/time and restored all 128 events.\n"); SourceTreeSmoke.run(project, panel, report, done);
@@ -61,7 +61,7 @@ final class SourcesSmoke {
             });
         });
     }
-    private static boolean ready(GraylogPanel panel) { return !(Boolean) SmokeUi.field(panel, "busy") && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING) && SmokeUi.index(panel).getResult() != null; }
+    private static boolean ready(GraylogPanel panel) { return !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING) && SmokeUi.index(panel).getResult() != null; }
     private static boolean catalogReady(GraylogPanel panel) { Object pane = SmokeUi.field(panel, "sourcePopup"); return pane != null && ((JButton) SmokeUi.field(pane, "refresh")).isEnabled(); }
     private static void open(GraylogPanel panel) throws Exception {
         phase = "opening native Sources popup"; SmokeUi.prepare((Project) SmokeUi.field(panel, "project"));

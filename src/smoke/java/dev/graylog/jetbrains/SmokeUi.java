@@ -16,6 +16,10 @@ import java.nio.file.StandardCopyOption;
 /** Exercises real toolbar actions and captures only the isolated test IDE. */
 @SuppressWarnings("removal")
 final class SmokeUi {
+    static SearchController.State search(GraylogPanel panel) { return ((SearchController) field(panel, "search")).state(); }
+    static SearchRequest loadedRequest(GraylogPanel panel) {
+        var page = search(panel).getPage(); return page == null ? null : page.getSession().request();
+    }
     static Object field(Object target, String name) {
         try { var field = target.getClass().getDeclaredField(name); field.setAccessible(true); return field.get(target); }
         catch (ReflectiveOperationException error) { throw new IllegalStateException(error); }
