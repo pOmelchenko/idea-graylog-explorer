@@ -33,6 +33,9 @@ jobs:
         run: |
           python3 build.py --ide-home "$IDE_HOME"
           python3 scripts/smoke_test.py --ide-home "$IDE_HOME" --theme "$SMOKE_THEME" --with-legacy-prototype
+      - name: Update and reload without restarting the IDE
+        if: matrix.theme == 'light'
+        run: python3 scripts/smoke_test.py --ide-home "$IDE_HOME" --reload
       - name: Upload synthetic UI reports
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

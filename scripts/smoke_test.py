@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--values-only", action="store_true")
     parser.add_argument("--sources-only", action="store_true")
     parser.add_argument("--with-legacy-prototype", action="store_true", help="Keep a disabled prototype installed to check migration conflicts")
+    parser.add_argument("--reload", action="store_true", help="Exercise dynamic unload/update from a separate controller plugin")
     args = parser.parse_args()
     ide = find_ide(args.ide_home)
     if not shutil.which("Xvfb"):
@@ -40,9 +41,9 @@ def main():
     workspace = ROOT / "build/smoke"
     if workspace.exists():
         shutil.rmtree(workspace)
-    report = ROOT / "build/reports/smoke" / args.theme
+    report = ROOT / "build/reports/smoke" / ("reload" if args.reload else args.theme)
     report.mkdir(parents=True, exist_ok=True)
-    for name in ["explorer-panel.png", "sources-window-panel.png", "sources-tree-panel.png", "php-values-editor.png", "legacy-conflict-result.txt", "result.txt", "startup.txt", "settings-result.txt", "settings-ide.png", "settings-project.png", "settings-failure.png", "variable-values-result.txt", "variable-values.png", "yii-result.txt", "yii-stack-trace.png",
+    for name in ["reload-steps.txt", "explorer-panel.png", "sources-window-panel.png", "sources-tree-panel.png", "php-values-editor.png", "legacy-conflict-result.txt", "result.txt", "startup.txt", "settings-result.txt", "settings-ide.png", "settings-project.png", "settings-failure.png", "variable-values-result.txt", "variable-values.png", "yii-result.txt", "yii-stack-trace.png",
                  "ui-details-result.txt", "ui-details-failure.png", "settings-sources.png", "settings-highlighting.png", "settings-search.png", "settings-network.png", "tree-focused.png", "tree-unfocused.png",
                  "query-completion.png", "query-level-values.png", "explorer-fields.png", "explorer-stack.png", "explorer-json.png", "explorer-exception-text.png",
                  "navigation-result.txt", "navigation-expanded.png", "navigation-collapsed.png", "source-tree-result.txt", "sources-tree.png", "sources-window.png", "source-tree-failure.png", "sources-result.txt", "sources-filter.png", "sources-selected.png", "sources-failure.png"]:
@@ -56,20 +57,41 @@ def main():
     if not main_classes.exists():
         raise SystemExit("Run python3 build.py first.")
     classpath = os.pathsep.join(map(str, [main_classes, *jars]))
+    sources = list((ROOT / "src/smoke/java").rglob("*.java")) + list((ROOT / "src/reload/java").rglob("*.java"))
     subprocess.run([java_bin(ide, "javac"), "--release", "21", "-proc:none", "-classpath", classpath,
-                    "-d", str(classes), *map(str, (ROOT / "src/smoke/java").rglob("*.java"))], check=True)
+                    "-d", str(classes), *map(str, sources)], check=True)
     lib = workspace / "plugins/graylog-jetbrains/lib"
     lib.mkdir(parents=True)
     version = ET.parse(ROOT / "src/main/resources/META-INF/plugin.xml").getroot().findtext("version")
     original = ROOT / f"build/libs/graylog-jetbrains-plugin-{version}.jar"
-    with zipfile.ZipFile(original) as source, zipfile.ZipFile(lib / original.name, "w", zipfile.ZIP_DEFLATED) as target:
-        for item in source.infolist():
-            value = source.read(item.filename)
-            if item.filename == "META-INF/plugin.xml":
-                value = value.replace(b"</extensions>", b'<postStartupActivity implementation="dev.graylog.jetbrains.SmokeActivity"/></extensions>')
-            target.writestr(item, value)
-        for file in classes.rglob("*.class"):
-            target.write(file, file.relative_to(classes).as_posix())
+    if args.reload:
+        # Production JAR stays untouched. The controller has its own classloader and no plugin dependency.
+        shutil.copy2(original, lib / original.name)
+        controller = workspace / "plugins/reload-controller/lib/controller.jar"
+        controller.parent.mkdir(parents=True)
+        with zipfile.ZipFile(controller, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("META-INF/plugin.xml", '<idea-plugin><id>dev.graylog.reload-test</id><name>Graylog reload test</name>'
+                             '<version>1</version><vendor>Test fixture</vendor><depends>com.intellij.modules.platform</depends>'
+                             '<extensions defaultExtensionNs="com.intellij"><postStartupActivity implementation="dev.graylog.reload.ReloadActivity"/></extensions></idea-plugin>')
+            for file in (classes / "dev/graylog/reload").rglob("*.class"):
+                archive.write(file, file.relative_to(classes).as_posix())
+        upgrade = workspace / "upgrade/graylog-jetbrains/lib"
+        upgrade.mkdir(parents=True)
+        with zipfile.ZipFile(original) as source, zipfile.ZipFile(upgrade / f"graylog-jetbrains-plugin-{version}-reload-test.jar", "w", zipfile.ZIP_DEFLATED) as target:
+            for item in source.infolist():
+                value = source.read(item.filename)
+                if item.filename == "META-INF/plugin.xml":
+                    value = value.replace(f"<version>{version}</version>".encode(), f"<version>{version}-reload-test</version>".encode())
+                target.writestr(item, value)
+    else:
+        with zipfile.ZipFile(original) as source, zipfile.ZipFile(lib / original.name, "w", zipfile.ZIP_DEFLATED) as target:
+            for item in source.infolist():
+                value = source.read(item.filename)
+                if item.filename == "META-INF/plugin.xml":
+                    value = value.replace(b"</extensions>", b'<postStartupActivity implementation="dev.graylog.jetbrains.SmokeActivity"/></extensions>')
+                target.writestr(item, value)
+            for file in (classes / "dev/graylog/jetbrains").rglob("*.class"):
+                target.write(file, file.relative_to(classes).as_posix())
     if args.with_legacy_prototype:
         # Separate plugin directory, matching the real two-plugin migration scenario.
         legacy = workspace / "plugins/legacy-graylog-prototype/lib"
@@ -104,7 +126,7 @@ def main():
         config.mkdir(parents=True)
         (config / "ide.general.xml").write_text('<application><component name="GeneralSettings"><option name="showTipsOnStartup" value="false"/></component></application>')
         options = workspace / "smoke.vmoptions"
-        options.write_text("\n".join(["-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.smoke.legacyInstalled={str(args.with_legacy_prototype).lower()}", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
+        options.write_text("\n".join(["-Xmx1024m" if args.reload else "-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.reload.plugin={workspace / 'plugins/graylog-jetbrains'}", f"-Dgraylog.reload.upgrade={workspace / 'upgrade/graylog-jetbrains'}", f"-Dgraylog.smoke.legacyInstalled={str(args.with_legacy_prototype).lower()}", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
                                     f"-Dgraylog.smoke.report={report}", f"-Dgraylog.smoke.theme={args.theme}", "-Didea.initially.ask.config=false",
                                     "-Didea.trust.all.projects=true", "-Dide.show.tips.on.startup.default.value=false",
                                     "-Djb.consents.confirmation.enabled=false", "-Dawt.toolkit.name=XToolkit", "-Dsplash=false"]) + "\n")
@@ -131,7 +153,7 @@ def main():
         with (report / "launcher.log").open("w") as log:
             app = subprocess.Popen([str(ide / "bin" / shell), str(project)],
                                    stdout=log, stderr=subprocess.STDOUT, env=env, start_new_session=True)
-            deadline = time.monotonic() + 180
+            deadline = time.monotonic() + (240 if args.reload else 180)
             last_update = 0
             while time.monotonic() < deadline:
                 result = report / "result.txt"
@@ -140,6 +162,9 @@ def main():
                     print(text, flush=True)
                     if not text.startswith("PASS:"):
                         return 1
+                    if args.reload:
+                        print(f"Reload report: {report / 'reload-steps.txt'}", flush=True)
+                        return 0
                     print(f"Screenshot: {report / 'ide-smoke.png'}", flush=True)
                     print(f"Yii trace: {report / 'yii-stack-trace.png'}", flush=True)
                     return 0

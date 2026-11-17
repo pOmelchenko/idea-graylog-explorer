@@ -51,6 +51,12 @@ Marketplace publication is being prepared. Development ZIPs are available in the
 
 If you installed the earlier local prototype with ID `dev.graylog.jetbrains`, disable or uninstall it before installing the public plugin, whose ID is `dev.omelchenko.graylogexplorer`. Persistent component names are retained, but the two plugin IDs must not be enabled together. Version 0.12.1 declares this incompatibility explicitly. If startup reports that the Graylog window or action is already registered, disable `dev.graylog.jetbrains`, keep `dev.omelchenko.graylogexplorer`, and restart the IDE.
 
+## Updates without restarting the IDE
+
+The plugin uses dynamic extension points and supports installation, updates and removal without a mandatory IDE restart. IntelliJ controls the unload: if it cannot unload a plugin safely, it can still request a restart. The earlier prototype must be disabled or removed before using the public plugin.
+
+An isolated regression test updates an unmodified production JAR in the same IDE process, then unloads and reloads it again. It checks the open Explorer, Live, source popup, exception markers, inline hints, actions and saved query. The classloader leak assertion clears platform icon caches first, since those caches can retain icons beyond a successful unload.
+
 ## Connect
 
 1. Add a connection with **+**, or use **Settings → Tools → Graylog Explorer → Connections**.
@@ -112,6 +118,7 @@ For real UI smoke tests on Linux, install Xvfb and use a local PhpStorm SDK:
 python3 build.py --ide-home /path/to/phpstorm
 python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme light --with-legacy-prototype
 python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme dark --with-legacy-prototype
+python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --reload
 ```
 
 Smoke tests launch a separate IDE with a generated project, a loopback-only fake Graylog service and isolated configuration. Production archives exclude smoke hooks and demo projects. Fixtures contain synthetic example data.

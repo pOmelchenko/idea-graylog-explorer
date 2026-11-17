@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Verify restartless updates and repeated dynamic reloads with an independent test controller and an unmodified production JAR.
+- Document dynamic update support and the IDE fallback when unloading fails.
+
 ## 0.12.1 — 2026-11-17
 
 - Declare incompatibility with the old `dev.graylog.jetbrains` prototype so IDE startup does not register the same Graylog tool window and action twice.
