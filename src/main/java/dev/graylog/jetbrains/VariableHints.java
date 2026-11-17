@@ -16,15 +16,24 @@ final class VariableHints implements Disposable {
     record Target(Editor editor, int line, List<ExceptionSites.Detail> exceptions, Inlay<?> fallback) { }
     private record Result(Target target, long stamp, List<VariableHintProvider.Hint> hints) { }
     private final Project project;
-    private final List<Inlay<?>> owned = new ArrayList<>();
-    private volatile long revision;
+    private final java.util.Map<Editor, List<Inlay<?>>> owned = new java.util.HashMap<>();
+    private final java.util.concurrent.ConcurrentMap<Editor, Long> revisions = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicLong revision = new java.util.concurrent.atomic.AtomicLong();
     private volatile boolean disposed;
     VariableHints(Project project) { this.project = project; }
-    void clear() { revision++; owned.forEach(Inlay::dispose); owned.clear(); }
-    void refresh(List<Target> targets) {
-        clear();
+    void clear() { revisions.clear(); owned.values().forEach(values -> values.forEach(Inlay::dispose)); owned.clear(); }
+    void clear(Editor editor) {
+        revisions.remove(editor); var values = owned.remove(editor); if (values != null) values.forEach(Inlay::dispose);
+    }
+    void invalidateProofs() {
+        revisions.clear();
+        if (com.intellij.openapi.application.ApplicationManager.getApplication().isDispatchThread()) clear();
+        else com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(() -> { if (!disposed) clear(); });
+    }
+    void refresh(Editor editor, List<Target> targets) {
+        clear(editor);
         if (targets.isEmpty() || VariableHintProvider.EP.getExtensionList().isEmpty()) return;
-        long generation = revision;
+        long generation = revision.incrementAndGet(); revisions.put(editor, generation);
         ReadAction.nonBlocking(() -> {
             List<Result> results = new ArrayList<>();
             for (Target target : targets) {
@@ -40,18 +49,18 @@ final class VariableHints implements Disposable {
             }
             return results;
         }).inSmartMode(project).withDocumentsCommitted(project).expireWith(this)
-                .expireWhen(() -> disposed || generation != revision)
+                .expireWhen(() -> disposed || !java.util.Objects.equals(revisions.get(editor), generation))
                 .finishOnUiThread(ModalityState.any(), results -> {
-                    if (disposed || generation != revision) return;
+                    if (disposed || !java.util.Objects.equals(revisions.get(editor), generation)) return;
                     for (Result result : results) {
-                        Editor editor = result.target().editor();
-                        if (editor.isDisposed() || editor.getDocument().getModificationStamp() != result.stamp()) continue;
+                        Editor targetEditor = result.target().editor();
+                        if (targetEditor.isDisposed() || targetEditor.getDocument().getModificationStamp() != result.stamp()) continue;
                         boolean added = false;
                         for (var hint : result.hints()) {
-                            if (hint.offset() < 0 || hint.offset() > editor.getDocument().getTextLength()) continue;
-                            var inlay = editor.getInlayModel().addInlineElement(hint.offset(), true,
+                            if (hint.offset() < 0 || hint.offset() > targetEditor.getDocument().getTextLength()) continue;
+                            var inlay = targetEditor.getInlayModel().addInlineElement(hint.offset(), true,
                                     new ExceptionInlineRenderer(LoggedStringTemplate.display(hint.value()), true));
-                            if (inlay != null) { owned.add(inlay); added = true; }
+                            if (inlay != null) { owned.computeIfAbsent(targetEditor, ignored -> new ArrayList<>()).add(inlay); added = true; }
                         }
                         if (added && result.target().fallback() != null && result.target().fallback().isValid()) result.target().fallback().dispose();
                     }

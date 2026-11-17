@@ -27,7 +27,7 @@ final class SourceTreeSmoke {
         SourceFilterPopup pane = (SourceFilterPopup) SmokeUi.field(panel, "sourcePopup");
         JTable table = (JTable) SmokeUi.field(pane, "table"); JBPopup popup = pane.popup();
         if (!table.getColumnName(1).equals("Source") || !table.getColumnName(2).equals("Messages")) throw new AssertionError("Sortable column headers missing");
-        Object before = SmokeUi.field(panel, "loadedRequest"), index = SmokeUi.index(panel).getResult();
+        Object before = SmokeUi.loadedRequest(panel), index = SmokeUi.index(panel).getResult();
         clickHeader(table, 2);
         await(report, () -> sorted(table, false), () -> {
             clickHeader(table, 2);
@@ -53,7 +53,7 @@ final class SourceTreeSmoke {
                         await(report, () -> popupReady(panel), () -> {
                             if (!((Set<?>) SmokeUi.field(pane, "draft")).containsAll(Set.of("archive-worker", "demo-api")) || !sorted(table, true)) throw new AssertionError("Refresh lost the draft or sort order");
                             button(pane, "Cancel").doClick();
-                            if (SmokeUi.field(panel, "loadedRequest") != before || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Window changes applied an uncommitted source draft");
+                            if (SmokeUi.loadedRequest(panel) != before || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Window changes applied an uncommitted source draft");
                             open(panel);
                             await(report, () -> popupReady(panel), () -> {
                                 SourceFilterPopup reopened = (SourceFilterPopup) SmokeUi.field(panel, "sourcePopup");
@@ -69,10 +69,10 @@ final class SourceTreeSmoke {
     }
     private static void treeChecks(Project project, GraylogPanel panel, Path report, Runnable done) throws Exception {
         JTree tree = (JTree) SmokeUi.field(SmokeUi.field(panel, "connections"), "tree");
-        SearchRequest baseline = (SearchRequest) SmokeUi.field(panel, "loadedRequest");
+        SearchRequest baseline = (SearchRequest) SmokeUi.loadedRequest(panel);
         clickEntry(tree, "archive-worker");
         await(report, () -> ready(panel) && ((JTable) SmokeUi.field(panel, "events")).getRowCount() == 1, () -> {
-            if (!((String) SmokeUi.field(panel, "selectedStream")).isEmpty() || !((SearchRequest) SmokeUi.field(panel, "loadedRequest")).from().equals(baseline.from())) throw new AssertionError("Checking source changed the active stream or period");
+            if (!((String) SmokeUi.field(panel, "selectedStream")).isEmpty() || !((SearchRequest) SmokeUi.loadedRequest(panel)).from().equals(baseline.from())) throw new AssertionError("Checking source changed the active stream or period");
             clickEntry(tree, "demo-worker");
             await(report, () -> ready(panel) && ((JTable) SmokeUi.field(panel, "events")).getRowCount() == 3, () -> {
                 if (!((SourceFilter) SmokeUi.field(panel, "sourceFilter")).values().equals(Set.of("archive-worker", "demo-worker"))) throw new AssertionError("Sidebar does not support multiple sources");
@@ -83,9 +83,9 @@ final class SourceTreeSmoke {
                     if (!((Set<?>) SmokeUi.field(popup, "draft")).equals(Set.of("archive-worker", "demo-worker"))) throw new AssertionError("Tree selection was not reflected in the popup");
                     button(popup, "Cancel").doClick(); clickEntry(tree, null);
                     await(report, () -> ready(panel) && ((JTable) SmokeUi.field(panel, "events")).getRowCount() == 100, () -> {
-                        Object request = SmokeUi.field(panel, "loadedRequest"), periodIndex = SmokeUi.index(panel).getResult();
+                        Object request = SmokeUi.loadedRequest(panel), periodIndex = SmokeUi.index(panel).getResult();
                         JTextField filter = (JTextField) SmokeUi.field(SmokeUi.field(panel, "connections"), "connectionFilter"); filter.setText("archive-worker");
-                        if (entry(tree, "archive-worker") == null || entry(tree, "demo-worker") != null || SmokeUi.field(panel, "loadedRequest") != request || SmokeUi.index(panel).getResult() != periodIndex) throw new AssertionError("Sidebar search changed logs or did not filter source names");
+                        if (entry(tree, "archive-worker") == null || entry(tree, "demo-worker") != null || SmokeUi.loadedRequest(panel) != request || SmokeUi.index(panel).getResult() != periodIndex) throw new AssertionError("Sidebar search changed logs or did not filter source names");
                         filter.setText("");
                         TreePath group = group(tree); tree.collapsePath(group);
                         open(panel);
@@ -121,7 +121,7 @@ final class SourceTreeSmoke {
     private static TreePath entry(JTree tree, String name) { var root = (DefaultMutableTreeNode) tree.getModel().getRoot(); var all = root.depthFirstEnumeration(); while (all.hasMoreElements()) { var n = (DefaultMutableTreeNode) all.nextElement(); if (n.getUserObject() instanceof SourceTree.Entry entry && Objects.equals(entry.name(), name)) return new TreePath(n.getPath()); } return null; }
     private static TreePath group(JTree tree) { var all = ((DefaultMutableTreeNode) tree.getModel().getRoot()).depthFirstEnumeration(); while (all.hasMoreElements()) { var n = (DefaultMutableTreeNode) all.nextElement(); if (n.getUserObject() instanceof SourceTree.Group) return new TreePath(n.getPath()); } throw new AssertionError("Source group missing"); }
     private static void selectStream(JTree tree, String name) { var all = ((DefaultMutableTreeNode) tree.getModel().getRoot()).depthFirstEnumeration(); while (all.hasMoreElements()) { var n = (DefaultMutableTreeNode) all.nextElement(); if (n.toString().equals(name) && !(n.getUserObject() instanceof SourceTree.Entry)) { tree.setSelectionPath(new TreePath(n.getPath())); return; } } throw new AssertionError("Missing stream " + name); }
-    private static boolean ready(GraylogPanel panel) { return !(Boolean) SmokeUi.field(panel, "busy") && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING) && SmokeUi.index(panel).getResult() != null; }
+    private static boolean ready(GraylogPanel panel) { return !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING) && SmokeUi.index(panel).getResult() != null; }
     private static boolean popupReady(GraylogPanel panel) { Object pane = SmokeUi.field(panel, "sourcePopup"); return pane != null && ((JButton) SmokeUi.field(pane, "refresh")).isEnabled(); }
     private static void open(GraylogPanel panel) throws Exception { AbstractButton b = sourceButton(panel); Point p = b.getLocationOnScreen(); click(p.x + b.getWidth() / 2, p.y + b.getHeight() / 2); }
     private static AbstractButton sourceButton(Container c) { if (c instanceof AbstractButton b && b.getText() != null && b.getText().startsWith("Source")) return b; for (Component child : c.getComponents()) if (child instanceof Container cc) { var b = sourceButton(cc); if (b != null) return b; } return null; }

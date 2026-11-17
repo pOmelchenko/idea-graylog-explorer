@@ -41,7 +41,7 @@ public final class GraylogClient implements GraylogApi {
     private final String apiUrl;
     private final String token;
     private final HttpClient http;
-    private final IdeOptions options;
+    private final OperationConfig configuration;
     private final LogFormat format;
 
     public GraylogClient(String apiUrl, String token) {
@@ -49,11 +49,17 @@ public final class GraylogClient implements GraylogApi {
     }
 
     public GraylogClient(String apiUrl, String token, IdeOptions options, LogFormat format) {
-        this.apiUrl = Connection.normalizeApiUrl(apiUrl);
+        this(configuration(apiUrl, options, format), token);
+    }
+    private static OperationConfig configuration(String apiUrl, IdeOptions options, LogFormat format) {
+        Connection connection = new Connection(); connection.apiUrl = apiUrl; connection.fields = format;
+        connection.serviceField = format.serviceField; return OperationConfig.capture(connection, options);
+    }
+    public GraylogClient(OperationConfig configuration, String token) {
+        configuration.validate(); this.configuration = configuration; this.apiUrl = Connection.normalizeApiUrl(configuration.server().apiUrl());
         if (token == null || token.isBlank()) throw new IllegalArgumentException("No API token stored. Edit the connection and enter a token.");
-        this.token = token;
-        options.validate(); format.validate(); this.options = options.copy(); this.format = format.copy();
-        http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(options.connectTimeoutSeconds))
+        this.token = token; this.format = configuration.server().format();
+        http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(configuration.transport().connectTimeoutSeconds()))
                 .followRedirects(HttpClient.Redirect.NEVER).build();
     }
 
@@ -155,8 +161,9 @@ public final class GraylogClient implements GraylogApi {
     }
 
     /** A scroll export is independent of the table's offset and Elasticsearch's result window. */
-    public PeriodIndex indexPeriod(SearchRequest request, Connection connection, Path projectRoot, LongConsumer progress)
+    public PeriodIndex indexPeriod(SearchRequest request, OperationConfig config, Path projectRoot, LongConsumer progress)
             throws IOException, InterruptedException {
+        Connection connection = config.server().connection();
         SearchRequest countRequest = new SearchRequest(request.query(), request.streamId(), request.from(), request.to(), 0, 1);
         JsonObject baseline = searchResponse(countRequest);
         verifyWindow(baseline, request);
@@ -166,10 +173,10 @@ public final class GraylogClient implements GraylogApi {
         fields.addAll(format.exportFields());
         Map<String, String> params = rangeParams(request);
         params.put("limit", "0"); // Graylog legacy scroll: no result limit; NOT an ordinary JSON page.
-        params.put("offset", "0"); params.put("batch_size", Integer.toString(options.exportBatchSize)); params.put("fields", String.join(",", fields));
+        params.put("offset", "0"); params.put("batch_size", Integer.toString(config.scan().exportBatchSize())); params.put("fields", String.join(",", fields));
         HttpResponse<InputStream> response = http.send(request("/search/universal/absolute/export", params, "text/csv"),
                 HttpResponse.BodyHandlers.ofInputStream());
-        ExceptionSites.Accumulator accumulator = new ExceptionSites.Accumulator(connection, projectRoot, options.examplesPerLocation);
+        ExceptionSites.Accumulator accumulator = new ExceptionSites.Accumulator(connection, projectRoot, config.scan().examplesPerLocation());
         long rows = 0;
         List<LogEvent> structured = new ArrayList<>();
         try (InputStream body = response.body()) {
@@ -212,6 +219,13 @@ public final class GraylogClient implements GraylogApi {
                 + " expected messages. The index was not published; refresh after the search data stabilizes.");
         progress.accept(rows);
         return new PeriodIndex(accumulator.finish(), rows, accumulator.exceptionCount());
+    }
+
+    public PeriodIndex indexPeriod(SearchRequest request, Connection connection, Path root, LongConsumer progress)
+            throws IOException, InterruptedException {
+        Connection legacy = connection.copy(); legacy.apiUrl = apiUrl;
+        return indexPeriod(request, new OperationConfig(OperationConfig.capture(legacy, new IdeOptions()).server(),
+                configuration.transport(), configuration.scan()), root, progress);
     }
 
     private boolean needsHydration(LogEvent event) {
@@ -308,7 +322,7 @@ public final class GraylogClient implements GraylogApi {
                 .collect(Collectors.joining("&"));
         String auth = Base64.getEncoder().encodeToString((token + ":token").getBytes(StandardCharsets.UTF_8));
         return HttpRequest.newBuilder(URI.create(apiUrl + path + (query.isEmpty() ? "" : "?" + query)))
-                .timeout(Duration.ofSeconds(options.requestTimeoutSeconds)).header("Accept", accept)
+                .timeout(Duration.ofSeconds(configuration.transport().requestTimeoutSeconds())).header("Accept", accept)
                 .header("Authorization", "Basic " + auth).header("X-Requested-By", "graylog-jetbrains");
     }
 

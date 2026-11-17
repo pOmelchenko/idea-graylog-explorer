@@ -16,11 +16,11 @@ class SourceCatalog(
         val error: String = "",
         val summary: String = "Loading sources…",
     )
-    private data class Cache(val context: String, val scope: SearchRequest, val result: GraylogApi.Sources, val created: Long)
+    private data class Cache(val context: OperationConfig, val scope: SearchRequest, val result: GraylogApi.Sources, val created: Long)
     private var current = State()
     private var cache: Cache? = null
     private var scope: SearchRequest? = null
-    private var context = ""
+    private var context: OperationConfig? = null
     private var fallback = emptyList<LogEvent>()
     private var future: Future<*>? = null
     private var generation = 0L
@@ -28,10 +28,10 @@ class SourceCatalog(
 
     fun state(): State = current
 
-    fun load(connection: Connection, request: SearchRequest, page: List<LogEvent>, force: Boolean) {
+    fun load(config: OperationConfig, request: SearchRequest, page: List<LogEvent>, force: Boolean) {
         if (closed) return
         fallback = page.toList()
-        val key = listOf(connection.id, connection.apiUrl, connection.credentialId, connection.serviceField).joinToString("\n")
+        val key = config
         if (!force && current.loading && context == key && request.sameScope(scope)) return
         val cached = cache
         if (!force && cached != null && cached.context == key && request.sameScope(cached.scope) && clock.asLong - cached.created < 30_000) {
@@ -43,9 +43,9 @@ class SourceCatalog(
         stop()
         scope = request; context = key
         val revision = generation
-        val snapshot = connection.copy()
+        val snapshot = config
         publish(State(loading = true, summary = "Loading sources for this period…"))
-        future = tasks.submit({ api.open(snapshot).use { it.sources(request, snapshot.serviceField) } }, { result ->
+        future = tasks.submit({ api.open(snapshot).use { it.sources(request, snapshot.server().serviceField()) } }, { result ->
             if (closed || revision != generation) return@submit
             future = null
             cache = Cache(key, request, result, clock.asLong)
@@ -53,7 +53,7 @@ class SourceCatalog(
         }, { error ->
             if (closed || revision != generation) return@submit
             future = null
-            val values = fallback.map { it.service(snapshot.serviceField) }.filter(String::isNotBlank)
+            val values = fallback.map { it.service(snapshot.server().serviceField()) }.filter(String::isNotBlank)
                 .groupingBy { it }.eachCount().toSortedMap().map { (name, count) -> GraylogApi.SourceValue(name, count.toLong()) }
             publish(State(GraylogApi.Sources(values, false), error = error.message ?: error.javaClass.simpleName,
                 summary = "Aggregation unavailable · loaded-page sources only"))
@@ -61,7 +61,7 @@ class SourceCatalog(
     }
 
     fun clear() {
-        stop(); scope = null; context = ""; fallback = emptyList()
+        stop(); scope = null; context = null; fallback = emptyList()
         if (!closed) publish(State())
     }
     private fun stop() { generation++; future?.cancel(true); future = null }

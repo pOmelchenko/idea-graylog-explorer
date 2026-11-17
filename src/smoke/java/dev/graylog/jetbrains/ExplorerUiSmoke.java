@@ -14,7 +14,7 @@ import java.util.List;
 final class ExplorerUiSmoke {
     static void run(Project project, GraylogPanel panel, Path report, Runnable done) {
         try {
-            Object request = SmokeUi.field(panel, "loadedRequest"), index = SmokeUi.index(panel).getResult();
+            Object request = SmokeUi.loadedRequest(panel), index = SmokeUi.index(panel).getResult();
             GraylogIdeConfigurable settings = new GraylogIdeConfigurable(); settings.createComponent(); settings.reset();
             Object colorPage = SmokeUi.field(settings, "sourceColors"), model = SmokeUi.field(colorPage, "model");
             @SuppressWarnings("unchecked") List<String[]> overrides = (List<String[]>) SmokeUi.field(model, "rows");
@@ -31,7 +31,7 @@ final class ExplorerUiSmoke {
                 throw new AssertionError("Field cell interpreted log data as Swing HTML");
             overrides.add(new String[]{source, "#C05090"}); settings.apply(); settings.disposeUIResources();
             later(report, 250, () -> {
-                if (SmokeUi.field(panel, "loadedRequest") != request || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Source color change restarted the search or index");
+                if (SmokeUi.loadedRequest(panel) != request || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Source color change restarted the search or index");
                 if (!GraylogIdeSettings.get().getState().options.sourceColors.get(source).equals("#C05090")) throw new AssertionError("Source color override not saved");
                 checkStripe(table, 0, Color.decode("#C05090"));
                 table.clearSelection(); checkStripe(table, 0, Color.decode("#C05090")); table.setRowSelectionInterval(0, 0);
@@ -59,7 +59,7 @@ final class ExplorerUiSmoke {
                             press(KeyEvent.VK_TAB);
                             later(report, 300, () -> {
                                 if (!query.getText().equals("level:")) throw new AssertionError("Tab did not insert field completion: " + query.getText());
-                                if (SmokeUi.field(panel, "loadedRequest") != request) throw new AssertionError("Accepting completion ran a search");
+                                if (SmokeUi.loadedRequest(panel) != request) throw new AssertionError("Accepting completion ran a search");
                                 query.setText("level: "); query.setCaretPosition(query.getText().length());
                                 later(report, 400, () -> {
                                     screenshot(report.resolve("query-level-values.png"));

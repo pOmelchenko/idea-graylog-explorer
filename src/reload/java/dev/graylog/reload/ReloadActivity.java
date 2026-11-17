@@ -88,7 +88,7 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
     private boolean ready() throws Exception {
         Object panel = panel();
         JTable events = (JTable) field(panel, "events");
-        if (events.getRowCount() == 0 || (boolean) field(panel, "busy") || !((JLabel) field(panel, "indexStatus")).getText().startsWith("Whole period")) return false;
+        if (events.getRowCount() == 0 || searchBusy(panel) || !((JLabel) field(panel, "indexStatus")).getText().startsWith("Whole period")) return false;
         for (int row = 0; row < events.getRowCount(); row++) {
             if (String.valueOf(events.getValueAt(row, 3)).contains("Invalid phone")) {
                 events.setRowSelectionInterval(row, row); break;
@@ -203,6 +203,10 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
             for (var hint : editor.getInlayModel().getAfterLineEndElementsInRange(0, end)) if (owned(hint.getRenderer())) count++;
         }
         return count;
+    }
+    private static boolean searchBusy(Object panel) throws Exception {
+        Object controller = field(panel, "search"); Object state = controller.getClass().getMethod("state").invoke(controller);
+        return state.getClass().getMethod("getPhase").invoke(state).toString().equals("LOADING");
     }
     private static boolean owned(Object object) { return object.getClass().getName().startsWith("dev.graylog.jetbrains."); }
     private static Object field(Object object, String name) throws Exception {

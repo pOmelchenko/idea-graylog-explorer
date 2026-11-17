@@ -13,7 +13,7 @@ class PeriodIndexController(
     enum class Phase { IDLE, LOADING, READY, FAILED, CANCELED }
     data class State(
         val phase: Phase = Phase.IDLE,
-        val connection: Connection? = null,
+        val config: OperationConfig? = null,
         val request: SearchRequest? = null,
         val root: Path? = null,
         val result: GraylogApi.PeriodIndex? = null,
@@ -25,13 +25,13 @@ class PeriodIndexController(
     private var generation = 0L
     private var closed = false
     fun state(): State = current
-    fun matches(connection: Connection, request: SearchRequest) = current.connection != null && SettingsValues.same(current.connection, connection) && request.sameScope(current.request)
+    fun matches(config: OperationConfig, request: SearchRequest) = current.config == config && request.sameScope(current.request)
 
-    fun start(connection: Connection, request: SearchRequest, root: Path?, force: Boolean) {
-        if (closed || (!force && matches(connection, request) && current.phase in listOf(Phase.LOADING, Phase.READY))) return
+    fun start(config: OperationConfig, request: SearchRequest, root: Path?, force: Boolean) {
+        if (closed || (!force && matches(config, request) && current.phase in listOf(Phase.LOADING, Phase.READY))) return
         stop()
         val revision = generation
-        val snapshot = connection.copy()
+        val snapshot = config
         publish(State(Phase.LOADING, snapshot, request, root))
         future = tasks.submit({
             api.open(snapshot).use { client -> client.indexPeriod(request, snapshot, root) { count ->

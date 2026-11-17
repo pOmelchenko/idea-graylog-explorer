@@ -125,13 +125,13 @@ Smoke tests launch a separate IDE with a generated project, a loopback-only fake
 
 ## Architecture
 
-The Explorer coordinates three views: connections, events and event details. Kotlin controllers own source aggregation/cache and full-period index state. They depend on `GraylogApi` and `TaskRunner` ports; the HTTP client and IntelliJ threading adapter implement those ports. Settings forms use Kotlin UI DSL, while persistent settings beans retain their storage format.
+The Explorer coordinates three views: connections, events and event details. Kotlin controllers own submitted search/page/example state, source aggregation/cache and the full-period index. They depend on `GraylogApi` and `TaskRunner` ports; the HTTP client and IntelliJ threading adapter implement those ports. Operations capture deeply immutable effective configuration. Typed IDE/project Settings changes invalidate only affected work. Editor decorations are indexed by file and updated by location, preserving unchanged markers. Both Settings pages use Kotlin UI DSL bindings over detached drafts, while persistent settings beans retain their storage format. Project Apply preserves workspace history.
 
-See [the review and refactoring report](docs/review-2026-11-17.md) for findings, boundaries, retained compatibility code and follow-up candidates.
+See [the review and refactoring report](docs/review-2026-11-17.md) for findings, boundaries, retained compatibility code and the 0.14 follow-up.
 
 ## Contributing and releases
 
-The manually invoked **Isolated UI smoke tests** workflow runs both themes against the pinned SDK without a real Graylog server.
+The manually invoked **Isolated UI smoke tests** workflow exercises both themes against the pinned SDK without a real Graylog server. It requires an IDE startup that can complete without interactive JetBrains Account login; the clean runner currently stops at that screen. Local UI tests use the installed SDK.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development and [docs/PUBLISHING.md](docs/PUBLISHING.md) for the first Marketplace upload, signing secrets and the manually invoked publication workflow. CI runs on pushes and pull requests; Marketplace publication is not triggered by an ordinary push.
 

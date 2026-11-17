@@ -104,7 +104,7 @@ final class VariableHintsSmoke {
                             ImageIO.write(new Robot().createScreenCapture(new Rectangle(0, 0, 1780, 1060)), "png", report.resolve("variable-values.png").toFile());
                             ReleaseScreenshots.capture(target.getComponent(), report.resolve("php-values-editor.png"));
                             Files.writeString(report.resolve("variable-values-result.txt"), "PASS: PHP PSI maps renamed local variables through a single lossless sprintf argument. Rejected transformed, constant, named, ambiguous, mutated, inherited-transform, multi-slot, precision, shadowed-function, wrong-class and wrong-format cases. Selected-event values override period samples; toggles, setting, edits and ownership passed.\n");
-                            done.run();
+                            dependencyEdit(project, target, report, done);
                         } catch (Throwable error) { fail(report, trace(error)); }
                     }); capture.setRepeats(false); capture.start();
                 });
@@ -113,6 +113,27 @@ final class VariableHintsSmoke {
             });
         });
     }
+    private static void dependencyEdit(Project project, Editor target, Path report, Runnable done) throws Exception {
+        var file = LocalFileSystem.getInstance().findFileByPath(project.getBasePath() + "/src/Domain/PhoneNumberInvalidException.php");
+        var document = FileDocumentManager.getInstance().getDocument(file);
+        FileEditorManager.getInstance(project).closeFile(file);
+        if (com.intellij.openapi.editor.EditorFactory.getInstance().getEditors(document, project).length != 0) throw new AssertionError("Dependency must be closed for this scenario");
+        String source = document.getText();
+        String transformed = source.replace("sprintf('Invalid phone: %s', $rawPhone)", "sprintf('Invalid phone: %s', strtoupper($rawPhone))");
+        if (transformed.equals(source)) throw new AssertionError("Dependency fixture was not changed");
+        com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction(project, () -> document.setText(transformed));
+        if (!hint(target).isEmpty()) throw new AssertionError("Value survived an edit to a closed dependency file");
+        com.intellij.openapi.application.WriteIntentReadAction.run(() -> FileDocumentManager.getInstance().saveDocument(document));
+        await(report, () -> hint(target).isEmpty() && !target.getInlayModel().getAfterLineEndElementsInRange(0, target.getDocument().getTextLength(), ExceptionInlineRenderer.class).isEmpty(), () -> {
+            com.intellij.openapi.command.WriteCommandAction.runWriteCommandAction(project, () -> document.setText(source));
+            com.intellij.openapi.application.WriteIntentReadAction.run(() -> FileDocumentManager.getInstance().saveDocument(document));
+            await(report, () -> hint(target).contains("+12025550123"), () -> {
+                Files.writeString(report.resolve("dependency-values-result.txt"), "PASS: Editing a closed exception-constructor file immediately clears selected values in the caller editor, retains the ordinary exception fallback and restores values only after the original proof is valid again.\n");
+                done.run();
+            });
+        });
+    }
+
     private static String hint(Editor editor) {
         return editor.getInlayModel().getInlineElementsInRange(0, editor.getDocument().getTextLength(), ExceptionInlineRenderer.class)
                 .stream().map(i -> i.getRenderer().text()).collect(java.util.stream.Collectors.joining());

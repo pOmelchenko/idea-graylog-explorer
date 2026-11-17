@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.0 — 2026-11-17
+
+- Move submitted search, cancellation, paging and exception-example display into a Kotlin SearchController; retain the last successful page on failure.
+- Capture immutable effective connection, transport and scan settings for each operation; validate imported values at the execution boundary.
+- Publish scoped Settings changes and classify their actual effect on the active connection. Appearance and Live interval retain results; mapping/sample changes rebuild the index; network changes retain the submitted window and query draft.
+- Update editor decorations by file/location and retain unchanged markers. Keep asynchronous PHP-value ownership and stale-result protection per editor, including invalidation when a dependency source changes.
+- Migrate both Settings pages to Kotlin DSL bindings over detached drafts. Apply project settings atomically while preserving concurrent workspace history and saved searches.
+- Add actual IDE Settings-effect checks and a 10,000-location refresh benchmark with marker identity/work-count assertions.
+
 ## 0.13.0 — 2026-11-17
 
 - Split Explorer into connections, events and event-details views with independent source catalog and period-index controllers.

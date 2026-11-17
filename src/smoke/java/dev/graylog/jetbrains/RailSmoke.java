@@ -16,7 +16,7 @@ import java.nio.file.*;
 final class RailSmoke {
     static void run(Project project, GraylogPanel panel, Path report, Runnable done) {
         try {
-            Object loaded = SmokeUi.field(panel, "loadedRequest"), index = SmokeUi.index(panel).getResult();
+            Object loaded = SmokeUi.loadedRequest(panel), index = SmokeUi.index(panel).getResult();
             JTree tree = (JTree) SmokeUi.field(SmokeUi.field(panel, "connections"), "tree");
             JTextField query = (JTextField) SmokeUi.field(panel, "query"); String text = query.getText();
             int expandedRows = tree.getRowCount();
@@ -52,7 +52,7 @@ final class RailSmoke {
         } catch (Throwable error) { fail(report, error); }
     }
     private static void sameScope(GraylogPanel panel, Object loaded, Object index, JTextField query, String text) {
-        if (SmokeUi.field(panel, "loadedRequest") != loaded || SmokeUi.index(panel).getResult() != index || !query.getText().equals(text)) throw new AssertionError("Navigation action changed the search or exception index");
+        if (SmokeUi.loadedRequest(panel) != loaded || SmokeUi.index(panel).getResult() != index || !query.getText().equals(text)) throw new AssertionError("Navigation action changed the search or exception index");
     }
     private static ActionToolbar rail(Container parent) {
         if (parent instanceof ActionToolbar toolbar && toolbar.getPlace().equals("Graylog.ActionRail")) return toolbar;

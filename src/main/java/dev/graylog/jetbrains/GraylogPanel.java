@@ -48,19 +48,20 @@ public final class GraylogPanel extends JPanel implements Disposable {
     private final ToolWindow toolWindow;
     private final GraylogSettings settings;
     private volatile IdeOptions ideOptions;
-    private List<ServerConnection> knownServers;
     private final ExceptionHighlights highlights;
     private final EventInspector inspector;
     private final ConnectionsView connections;
     private final IdeTaskRunner tasks;
     private final SourceCatalog catalog;
     private final PeriodIndexController index;
+    private final SearchController search;
+    private SearchController.Page renderedPage;
+    private SearchController.Display renderedDisplay;
     private final Timer timer;
     private final ExtendableTextField query = ExplorerUi.filterField("Graylog query", () -> search());
     private final QueryCompletion completion = new QueryCompletion(query);
     private final SourceFilter sourceFilter = new SourceFilter();
     private String sourceFilterContext = "";
-    private SearchRequest baseSnapshot;
     private SourceFilterPopup sourcePopup;
     private final JComboBox<Period> period = new JComboBox<>(PERIODS);
     private final JComboBox<Integer> pageSize = new JComboBox<>(new Integer[]{100, 250, 500});
@@ -79,17 +80,9 @@ public final class GraylogPanel extends JPanel implements Disposable {
     private Connection active;
     private String selectedStream = "";
     private String selectedNodeKey = "";
-    private SearchRequest snapshot;
-    private SearchRequest loadedRequest;
-    private List<LogEvent> loadedEvents = List.of();
-    private long loadedTotal;
-    private String resultsSummary = "";
     private LogEvent selected;
     private String restoreSelection = "";
-    private Future<?> searchTask;
-    private long requestNumber;
     private boolean rebuilding;
-    private boolean busy;
     private OnePixelSplitter navigationSplitter;
     private boolean connectionsVisible = true;
     private volatile boolean disposed;
@@ -98,13 +91,13 @@ public final class GraylogPanel extends JPanel implements Disposable {
         super(new BorderLayout());
         this.project = project; this.toolWindow = toolWindow; settings = GraylogSettings.get(project);
         ideOptions = GraylogIdeSettings.get().getState().options;
-        knownServers = GraylogIdeSettings.get().getState().connections;
         tasks = new IdeTaskRunner(project, this);
         catalog = new SourceCatalog(tasks, this::client, () -> System.nanoTime() / 1_000_000, this::publishSources);
         index = new PeriodIndexController(tasks, this::client, this::renderIndex);
+        search = new SearchController(tasks, this::client, this::renderSearch);
         highlights = new ExceptionHighlights(project, this, this::showSite);
         inspector = new EventInspector(project, this, this::openSource, this::showAround, this::followRequest);
-        connections = new ConnectionsView(() -> ideOptions, () -> !busy, this::rebuildTree, this::selectNavigationNode, this::toggleTreeSource);
+        connections = new ConnectionsView(() -> ideOptions, () -> !searchBusy(), this::rebuildTree, this::selectNavigationNode, this::toggleTreeSource);
         GraylogSettings.Data saved = settings.getState();
         codeMarks.setSelected(settings.highlightsEnabled()); highlights.configure(ideOptions); highlights.setEnabled(codeMarks.isSelected());
         query.setText(saved.lastQuery); choosePeriod(saved.rangeSeconds == 0 ? ideOptions.defaultPeriodSeconds : saved.rangeSeconds);
@@ -129,41 +122,31 @@ public final class GraylogPanel extends JPanel implements Disposable {
 
         query.addActionListener(e -> search());
         query.registerKeyboardAction(e -> search(), KeyStroke.getKeyStroke("control ENTER"), JComponent.WHEN_FOCUSED);
-        period.addActionListener(e -> { snapshot = null; search(); });
+        period.addActionListener(e -> search());
         pageSize.addActionListener(e -> {
-            if (snapshot != null && snapshot.query().equals(effectiveQuery())
-                    && snapshot.streamId().equals(selectedStream)) {
-                baseSnapshot = new SearchRequest(query.getText(), selectedStream, snapshot.from(), snapshot.to(), 0, (Integer) pageSize.getSelectedItem());
-                snapshot = sourceFilter.apply(baseSnapshot, active.serviceField);
-                executeSearch(snapshot);
+            SearchController.Session submitted = search.state().getRequested();
+            if (active != null && submitted != null && submitted.getScope().matchesInput(query.getText(), selectedStream, sourceFilter.values())) {
+                executeSearch(new SearchController.Session(operation(), submitted.getScope(), 0, (Integer) pageSize.getSelectedItem()));
             } else search();
         });
         live.addActionListener(e -> { if (live.isSelected()) search(); });
         codeMarks.addActionListener(e -> {
             highlights.setEnabled(codeMarks.isSelected()); settings.setHighlightExceptions(codeMarks.isSelected());
             if (!codeMarks.isSelected()) { resetIndex(); indexStatus.setText("Exception marks disabled."); }
-            else if (active != null && loadedRequest != null) startIndex(active.copy(), loadedRequest, true);
+            else if (active != null && loadedRequest() != null) startIndex(operation(), loadedRequest(), true);
         });
         indexControl.addActionListener(e -> {
             if (indexBusy()) {
                 index.cancel();
-            } else if (active != null && loadedRequest != null) startIndex(active.copy(), loadedRequest, true);
+            } else if (active != null && loadedRequest() != null) startIndex(operation(), loadedRequest(), true);
         });
-        allEvents.addActionListener(e -> {
-            displayEvents(loadedEvents); allEvents.setEnabled(false); updatePaging(); setStatus(resultsSummary, false);
-        });
+        allEvents.addActionListener(e -> search.showLoadedPage());
         previous.addActionListener(e -> page(-1)); next.addActionListener(e -> page(1));
         timer = new Timer(ideOptions.liveIntervalSeconds * 1000, e -> {
-            if (live.isSelected() && toolWindow.isVisible() && isShowing() && !busy && !indexBusy() && active != null) search();
+            if (live.isSelected() && toolWindow.isVisible() && isShowing() && !searchBusy() && !indexBusy() && active != null) search();
         });
         timer.start();
-        ApplicationManager.getApplication().getMessageBus().connect(this).subscribe(SettingsEvents.TOPIC, changed -> {
-            IdeOptions nextOptions = GraylogIdeSettings.get().getState().options;
-            IdeOptions before = ideOptions.copy(); before.sourceStripes = nextOptions.sourceStripes; before.sourceColors = nextOptions.sourceColors;
-            if (changed == null && !SettingsValues.same(ideOptions, nextOptions) && SettingsValues.same(before, nextOptions)
-                    && SettingsValues.same(knownServers, GraylogIdeSettings.get().getState().connections)) { ideOptions = nextOptions; events.repaint(); connections.repaint(); if (sourcePopup != null && sourcePopup.alive()) sourcePopup.popup().getContent().repaint(); }
-            else if (changed == null || changed == project) reloadSettings();
-        });
+        ApplicationManager.getApplication().getMessageBus().connect(this).subscribe(SettingsEvents.TOPIC, this::settingsChanged);
         rebuildTree();
         String initial = initialConnection(); if (!initial.isBlank()) later(() -> selectNode(initial + ":"));
     }
@@ -303,7 +286,8 @@ public final class GraylogPanel extends JPanel implements Disposable {
         connections.showStreams("Loading streams…", null);
         Future<?> previous = streamTasks.remove(connection.id); if (previous != null) previous.cancel(true);
         long sequence = streamRequests.merge(connection.id, 1L, Long::sum);
-        streamTasks.put(connection.id, tasks.submit(() -> { try (GraylogApi api = client(connection)) { return api.streams(); } }, result -> {
+        OperationConfig config = OperationConfig.capture(connection, ideOptions);
+        streamTasks.put(connection.id, tasks.submit(() -> { try (GraylogApi api = client(config)) { return api.streams(); } }, result -> {
             if (streamRequests.get(connection.id) != sequence) return;
             // A deleted or edited connection must not be resurrected by an older response.
             boolean stillExists = settings.connections().stream().anyMatch(c -> c.id.equals(connection.id) && c.apiUrl.equals(connection.apiUrl));
@@ -320,27 +304,31 @@ public final class GraylogPanel extends JPanel implements Disposable {
         }));
     }
 
-    private GraylogApi client(Connection connection) {
+    private GraylogApi client(OperationConfig config) {
         if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
-        String token = GraylogCredentials.load(connection);
+        String token = GraylogCredentials.load(config.server().credentialKey());
         if (Thread.currentThread().isInterrupted()) throw new java.util.concurrent.CancellationException();
-        return new GraylogClient(connection.apiUrl, token, ideOptions, connection.fields);
+        return new GraylogClient(config, token);
     }
 
     private void search() {
         if (rebuilding || disposed) return;
         if (active == null) { live.setSelected(false); setStatus("Add or select a connection first.", false); return; }
         Instant now = Instant.now();
-        baseSnapshot = new SearchRequest(query.getText(), selectedStream, now.minusSeconds(seconds()), now, 0, (Integer) pageSize.getSelectedItem());
-        snapshot = sourceFilter.apply(baseSnapshot, active.serviceField);
-        executeSearch(snapshot);
+        submit(new SearchScope(query.getText(), selectedStream, now.minusSeconds(seconds()), now, active.serviceField, sourceFilter.values()));
     }
-
+    private OperationConfig operation() { return OperationConfig.capture(active, ideOptions); }
+    private void submit(SearchScope scope) { executeSearch(new SearchController.Session(operation(), scope, 0, (Integer) pageSize.getSelectedItem())); }
+    private boolean searchBusy() { return search.state().getPhase() == SearchController.Phase.LOADING; }
+    private SearchRequest loadedRequest() { var page = search.state().getPage(); return page == null ? null : page.getSession().request(); }
+    private List<LogEvent> loadedEvents() { var page = search.state().getPage(); return page == null ? List.of() : page.getResult().events(); }
     private String effectiveQuery() { return sourceFilter.query(query.getText(), active == null ? "source" : active.serviceField); }
     private SearchRequest sourceScope() {
-        if (baseSnapshot != null) return new SearchRequest(baseSnapshot.query(), baseSnapshot.streamId(), baseSnapshot.from(), baseSnapshot.to(), 0, (Integer) pageSize.getSelectedItem());
+        var submitted = search.state().getRequested();
+        if (submitted != null) return submitted.getScope().facet((Integer) pageSize.getSelectedItem());
         Instant now = Instant.now(); return new SearchRequest(query.getText(), selectedStream, now.minusSeconds(seconds()), now, 0, (Integer) pageSize.getSelectedItem());
     }
+
     private com.intellij.openapi.ui.popup.JBPopup createSourcePopup(JComponent anchor, Runnable onDispose) {
         if (sourcePopup != null && sourcePopup.alive()) sourcePopup.popup().cancel();
         SearchRequest scope = sourceScope(); Connection connection = active.copy();
@@ -350,7 +338,7 @@ public final class GraylogPanel extends JPanel implements Disposable {
         sourcePopup = pane; loadSources(connection, scope, false); return pane.popup();
     }
     private void toggleTreeSource(SourceTree.Entry entry) {
-        if (active == null || busy || rebuilding) return;
+        if (active == null || searchBusy() || rebuilding) return;
         java.util.Set<String> values = new java.util.LinkedHashSet<>(sourceFilter.values());
         if (entry.name() == null) values.clear(); else if (!values.remove(entry.name())) values.add(entry.name());
         applySources(sourceScope(), values);
@@ -358,9 +346,10 @@ public final class GraylogPanel extends JPanel implements Disposable {
     private void applySources(SearchRequest scope, java.util.Set<String> values) {
         if (active == null || !scope.sameScope(sourceScope())) return;
         sourceFilter.replace(values);
-        baseSnapshot = new SearchRequest(scope.query(), selectedStream, scope.from(), scope.to(), 0, (Integer) pageSize.getSelectedItem());
-        snapshot = sourceFilter.apply(baseSnapshot, active.serviceField); rebuildTree(); executeSearch(snapshot);
+        rebuildTree();
+        submit(new SearchScope(scope.query(), selectedStream, scope.from(), scope.to(), active.serviceField, sourceFilter.values()));
     }
+
     private void publishSources() {
         rebuildTree();
         if (sourcePopup == null || !sourcePopup.alive()) return;
@@ -370,47 +359,63 @@ public final class GraylogPanel extends JPanel implements Disposable {
         else if (state.getValues() != null) sourcePopup.loaded(state.getValues());
     }
     private void loadSources(Connection connection, SearchRequest scope, boolean force) {
-        catalog.load(connection, scope, loadedEvents, force);
+        catalog.load(OperationConfig.capture(connection, ideOptions), scope, loadedEvents(), force);
     }
 
-    private void executeSearch(SearchRequest request) {
-        invalidateSearch();
-        final long sequence = requestNumber;
-        final Connection connection = active.copy();
-        if (!index.matches(connection, request)) {
-            resetIndex(); indexStatus.setText(codeMarks.isSelected() ? "Exceptions: waiting for search results…" : "Exception marks disabled.");
+    private void executeSearch(SearchController.Session session) {
+        settings.remember(session.getConfig().server().id(), session.getScope().query(), seconds());
+        settings.rememberPageSize(session.getLimit()); search.load(session);
+    }
+    private void renderSearch(SearchController.State state) {
+        if (disposed) return;
+        SearchController.Page page = state.getPage();
+        boolean pageChanged = page != renderedPage;
+        if (pageChanged) {
+            renderedPage = page;
+            if (page != null) completion.observe(page.getResult().events(), page.getSession().getConfig().server().serviceField());
         }
-        allEvents.setEnabled(false);
-        busy = true; previous.setEnabled(false); next.setEnabled(false);
-        setStatus("Searching " + connection.name + "…", false);
-        settings.remember(connection.id, query.getText(), seconds());
-        settings.rememberPageSize((Integer) pageSize.getSelectedItem());
-        searchTask = tasks.submit(() -> { try (GraylogApi api = client(connection)) { return api.search(request); } }, result -> {
-            if (sequence != requestNumber) return;
-            busy = false;
-            loadedEvents = result.events(); loadedRequest = request; loadedTotal = result.total();
-            completion.observe(loadedEvents, connection.serviceField);
-            displayEvents(loadedEvents); updatePaging();
-            loadSources(connection, sourceScope(), false);
-            long first = request.offset() + 1, last = request.offset() + result.events().size();
-            String count = result.events().isEmpty() ? "No events" : (first == last ? Long.toString(first) : first + "–" + last) + " of " + counted(result.total(), "event");
-            resultsSummary = connection.name + " · " + count;
-            setStatus(resultsSummary + (live.isSelected() ? " · Live every " + ideOptions.liveIntervalSeconds + "s" : ""), false);
-            status.setToolTipText("UTC: " + request.from() + " → " + request.to() + " | Query: " + request.query());
-            events.getEmptyText().setText("No events matched. Try a wider period or another query.");
-            if (codeMarks.isSelected()) {
-                if (ideOptions.autoIndex) startIndex(connection, request, false);
-                else if (index.state().getPhase() == PeriodIndexController.Phase.IDLE) { indexStatus.setText("Exception index is manual · click Refresh marks."); indexControl.setEnabled(true); }
+        if (state.getDisplay() != renderedDisplay) {
+            renderedDisplay = state.getDisplay();
+            displayEvents(state.rows());
+        }
+        allEvents.setEnabled(state.getDisplay() instanceof SearchController.Display.Examples);
+        updatePaging();
+        switch (state.getPhase()) {
+            case IDLE -> { }
+            case LOADING -> {
+                var submitted = state.getRequested();
+                if (!index.matches(submitted.getConfig(), submitted.request())) {
+                    resetIndex(); indexStatus.setText(codeMarks.isSelected() ? "Exceptions: waiting for search results…" : "Exception marks disabled.");
+                }
+                allEvents.setEnabled(false); setStatus("Searching " + active.name + "…", false);
             }
-        }, error -> {
-            if (sequence != requestNumber) return;
-            busy = false; live.setSelected(false);
-            setStatus("Search failed: " + errorMessage(error) + " Previous results, if any, are unchanged.", true);
-        });
+            case FAILED -> { live.setSelected(false); setStatus("Search failed: " + state.getError() + " Previous results, if any, are unchanged.", true); }
+            case READY -> {
+                if (state.getDisplay() instanceof SearchController.Display.Examples examples) {
+                    var site = examples.getSite();
+                    setStatus("Graylog · " + site.location().file().getFileName() + ":" + site.location().line()
+                            + " · " + site.count() + " event(s) in period · showing " + site.events().size() + " example(s) · " + String.join(", ", site.types()), false);
+                } else if (page != null) {
+                    var request = page.getSession().request(); long first = request.offset() + 1, last = request.offset() + page.getResult().events().size();
+                    String count = page.getResult().events().isEmpty() ? "No events" : (first == last ? Long.toString(first) : first + "–" + last) + " of " + counted(page.getResult().total(), "event");
+                    setStatus(active.name + " · " + count + (live.isSelected() ? " · Live every " + ideOptions.liveIntervalSeconds + "s" : ""), false);
+                    status.setToolTipText("UTC: " + request.from() + " → " + request.to() + " | Query: " + request.query());
+                    events.getEmptyText().setText("No events matched. Try a wider period or another query.");
+                    if (pageChanged && state.getRequested() == page.getSession()) {
+                        OperationConfig current = operation();
+                        catalog.load(current, page.getSession().getScope().facet(page.getSession().getLimit()), page.getResult().events(), false);
+                        if (codeMarks.isSelected() && ideOptions.autoIndex) startIndex(current, request, false);
+                        else if (codeMarks.isSelected() && index.state().getPhase() == PeriodIndexController.Phase.IDLE) {
+                            indexStatus.setText("Exception index is manual · click Refresh marks."); indexControl.setEnabled(true);
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    private void startIndex(Connection connection, SearchRequest request, boolean force) {
-        if (codeMarks.isSelected() && !disposed) index.start(connection, request, projectRoot(), force);
+    private void startIndex(OperationConfig config, SearchRequest request, boolean force) {
+        if (codeMarks.isSelected() && !disposed) index.start(config, request, projectRoot(), force);
     }
     private boolean indexBusy() { return index.state().getPhase() == PeriodIndexController.Phase.LOADING; }
     private Path projectRoot() { return project.getBasePath() == null ? null : Path.of(project.getBasePath()); }
@@ -420,16 +425,16 @@ public final class GraylogPanel extends JPanel implements Disposable {
                 highlights.clear(); indexControl.setEnabled(false); indexControl.setText("Refresh marks"); indexStatus.setForeground(getForeground());
             }
             case LOADING -> {
-                String context = state.getConnection().name + " · " + state.getRequest().from() + " → " + state.getRequest().to() + " UTC · " + state.getRequest().query();
-                if (state.getProgress() == 0) { highlights.replace(List.of(), context, state.getConnection(), state.getRoot()); highlights.select(selected); }
+                String context = state.getConfig().server().name() + " · " + state.getRequest().from() + " → " + state.getRequest().to() + " UTC · " + state.getRequest().query();
+                if (state.getProgress() == 0) { highlights.replace(List.of(), context, state.getConfig().server().connection(), state.getRoot()); highlights.select(selected); }
                 indexStatus.setForeground(getForeground()); indexStatus.setToolTipText(context);
                 indexStatus.setText(state.getProgress() == 0 ? "Indexing exceptions for the whole period…" : "Indexing exceptions · " + state.getProgress() + " messages processed…");
                 indexControl.setText("Cancel scan"); indexControl.setEnabled(true);
             }
             case READY -> {
                 GraylogApi.PeriodIndex result = state.getResult();
-                String context = state.getConnection().name + " · " + state.getRequest().from() + " → " + state.getRequest().to() + " UTC · " + state.getRequest().query();
-                highlights.replace(result.sites(), context, state.getConnection(), state.getRoot()); highlights.select(selected);
+                String context = state.getConfig().server().name() + " · " + state.getRequest().from() + " → " + state.getRequest().to() + " UTC · " + state.getRequest().query();
+                highlights.replace(result.sites(), context, state.getConfig().server().connection(), state.getRoot()); highlights.select(selected);
                 indexStatus.setText("Whole period · " + counted(result.exceptions(), "exception") + " · " + counted(result.sites().size(), "location") + " · " + counted(result.messages(), "message"));
                 indexStatus.setForeground(getForeground()); indexControl.setText("Refresh marks");
             }
@@ -444,15 +449,10 @@ public final class GraylogPanel extends JPanel implements Disposable {
     }
     private void resetIndex() { index.clear(); }
 
-    private void page(int direction) {
-        if (snapshot == null || active == null || busy) return;
-        live.setSelected(false);
-        snapshot = snapshot.page(Math.max(0, snapshot.offset() + direction * snapshot.limit()));
-        executeSearch(snapshot);
-    }
+    private void page(int direction) { if (active != null) { live.setSelected(false); search.page(direction, operation()); } }
 
     private void showEvent(LogEvent event) {
-        selected = event; highlights.select(event); inspector.show(event, active, loadedRequest);
+        selected = event; highlights.select(event); inspector.show(event, active, loadedRequest());
     }
 
     private void showSourceMenu(MouseEvent mouse) {
@@ -503,31 +503,19 @@ public final class GraylogPanel extends JPanel implements Disposable {
     }
 
     private void updatePaging() {
-        if (loadedRequest == null) { previous.setEnabled(false); next.setEnabled(false); return; }
-        previous.setEnabled(loadedRequest.offset() > 0);
-        next.setEnabled(loadedRequest.offset() + loadedRequest.limit() < loadedTotal && loadedEvents.size() == loadedRequest.limit()
-                && loadedRequest.offset() + 2 * loadedRequest.limit() <= 10000);
+        previous.setEnabled(search.state().canPrevious()); next.setEnabled(search.state().canNext());
     }
-
     private void showSite(ExceptionSites.Site site) {
         if (disposed) return;
-        live.setSelected(false); invalidateSearch();
-        toolWindow.activate(() -> {
-            if (disposed) return;
-            displayEvents(site.events()); allEvents.setEnabled(true);
-            previous.setEnabled(false); next.setEnabled(false);
-            setStatus("Graylog · " + site.location().file().getFileName() + ":" + site.location().line()
-                    + " · " + site.count() + " event(s) in period · showing " + site.events().size() + " example(s) · " + String.join(", ", site.types()), false);
-        });
+        live.setSelected(false); SearchController.Page page = search.state().getPage();
+        toolWindow.activate(() -> { if (!disposed && search.state().getPage() == page) search.showExamples(site); });
     }
 
     private void showAround() {
         if (selected == null || selected.timestamp() == null || active == null) return;
         live.setSelected(false); query.setText("*");
         Instant timestamp = selected.timestamp();
-        baseSnapshot = new SearchRequest("*", selectedStream, timestamp.minusSeconds(300), timestamp.plusSeconds(300), 0, (Integer) pageSize.getSelectedItem());
-        snapshot = sourceFilter.apply(baseSnapshot, active.serviceField);
-        executeSearch(snapshot);
+        submit(new SearchScope("*", selectedStream, timestamp.minusSeconds(300), timestamp.plusSeconds(300), active.serviceField, sourceFilter.values()));
     }
 
     private void followRequest() {
@@ -553,14 +541,11 @@ public final class GraylogPanel extends JPanel implements Disposable {
 
     private void clearEvents() {
         if (sourcePopup != null && sourcePopup.alive()) sourcePopup.popup().cancel();
-        baseSnapshot = null;
-        catalog.clear();
-        loadedEvents = List.of(); loadedRequest = null; loadedTotal = 0; resultsSummary = "";
-        restoreSelection = "";
+        search.clear(); catalog.clear(); restoreSelection = "";
         resetIndex(); indexStatus.setText("Exceptions: select a connection and search."); allEvents.setEnabled(false);
-        events.show(List.of(), "source", "", false); showEvent(null); previous.setEnabled(false); next.setEnabled(false);
+        showEvent(null);
     }
-    private void invalidateSearch() { requestNumber++; busy = false; if (searchTask != null) searchTask.cancel(true); }
+    private void invalidateSearch() { search.cancel(); }
     private String liveLabel() { return "Live · " + ideOptions.liveIntervalSeconds + "s"; }
     private String initialConnection() {
         List<Connection> available = settings.connections(); if (available.isEmpty()) return "";
@@ -570,6 +555,58 @@ public final class GraylogPanel extends JPanel implements Disposable {
         }
         return available.getFirst().id;
     }
+    private void settingsChanged(SettingsEvents.Event event) {
+        if (disposed || !event.appliesTo(project)) return;
+        SettingsChange change = event.changes(); IdeOptions previous = ideOptions;
+        ideOptions = GraylogIdeSettings.get().getState().options;
+        if (change.has(SettingsChange.Area.LIVE)) {
+            timer.setDelay(ideOptions.liveIntervalSeconds * 1000); timer.setInitialDelay(timer.getDelay()); live.setText(liveLabel());
+        }
+        if (change.has(SettingsChange.Area.SOURCE_STYLE)) {
+            events.repaint(); connections.repaint();
+            if (sourcePopup != null && sourcePopup.alive()) sourcePopup.popup().getContent().repaint();
+        }
+        if (change.has(SettingsChange.Area.HIGHLIGHT_STYLE) || change.has(SettingsChange.Area.INDEX_OPTIONS)) highlights.configure(ideOptions);
+        Connection nextActive = active == null ? null : settings.connections().stream().filter(c -> c.id.equals(active.id)).findFirst().orElse(null);
+        if (active == null || nextActive == null || change.has(SettingsChange.Area.PREFERENCE) && !active.id.equals(initialConnection())) {
+            if (change.affectsRequests()) reloadSettings(); return;
+        }
+        SettingsImpact impact = SettingsImpact.between(OperationConfig.capture(active, previous), OperationConfig.capture(nextActive, ideOptions));
+        active = nextActive.copy();
+        if (change.has(SettingsChange.Area.LOG_FORMAT)) completion.reset(active.fields);
+        if (change.has(SettingsChange.Area.CONNECTIONS) || change.has(SettingsChange.Area.LOG_FORMAT) || change.has(SettingsChange.Area.MAPPINGS)) {
+            query.getEmptyText().setText("Graylog query, e.g. " + active.fields.requestIdField + ":abc-123");
+            updateContext(active.name + (selectedStream.isEmpty() ? " / All messages" : " / " + selectedStream));
+            inspector.show(selected, active, loadedRequest());
+        }
+        if (change.has(SettingsChange.Area.HIGHLIGHT_MODE)) {
+            codeMarks.setSelected(settings.highlightsEnabled()); highlights.setEnabled(codeMarks.isSelected());
+            if (!codeMarks.isSelected()) { resetIndex(); indexStatus.setText("Exception marks disabled."); }
+        }
+        if (impact.streams()) { streams.remove(active.id); loadStreams(active.copy()); }
+        if (change.has(SettingsChange.Area.CONNECTIONS)) rebuildTree();
+        if (impact.sources()) catalog.clear();
+        if (impact.index()) resetIndex();
+        if (impact.page()) {
+            var submitted = search.state().getRequested();
+            if (submitted != null) {
+                String context = active.id + "\n" + active.apiUrl + "\n" + active.serviceField;
+                if (!sourceFilterContext.equals(context)) { sourceFilter.clear(); sourceFilterContext = context; }
+                var scope = submitted.getScope();
+                var refreshed = new SearchScope(scope.query(), scope.streamId(), scope.from(), scope.to(), active.serviceField, sourceFilter.values());
+                executeSearch(new SearchController.Session(operation(), refreshed, submitted.getOffset(), submitted.getLimit()));
+            }
+            return;
+        }
+        if (codeMarks.isSelected() && loadedRequest() != null && !searchBusy()
+                && (impact.index() || change.has(SettingsChange.Area.HIGHLIGHT_MODE)
+                || change.has(SettingsChange.Area.INDEX_POLICY) && ideOptions.autoIndex)) {
+            if (ideOptions.autoIndex) startIndex(operation(), loadedRequest(), impact.index());
+            else { resetIndex(); indexStatus.setText("Exception index is manual · click Refresh marks."); indexControl.setEnabled(true); }
+        }
+        if (change.has(SettingsChange.Area.CONNECTIONS)) renderSearch(search.state());
+    }
+
     private void reloadSettings() {
         if (disposed || project.isDisposed()) return;
         connections.clearFilter();
@@ -577,7 +614,6 @@ public final class GraylogPanel extends JPanel implements Disposable {
         String previousStream = selectedStream;
         String previousSelection = selected == null ? "" : selected.identity();
         ideOptions = GraylogIdeSettings.get().getState().options;
-        knownServers = GraylogIdeSettings.get().getState().connections;
         timer.setDelay(ideOptions.liveIntervalSeconds * 1000); timer.setInitialDelay(ideOptions.liveIntervalSeconds * 1000);
         live.setText(liveLabel()); highlights.configure(ideOptions);
         codeMarks.setSelected(settings.highlightsEnabled()); highlights.setEnabled(codeMarks.isSelected());
@@ -601,7 +637,7 @@ public final class GraylogPanel extends JPanel implements Disposable {
     private static String errorMessage(Throwable e) { return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage(); }
     private static String counted(long value, String noun) { return value + " " + noun + (value == 1 ? "" : "s"); }
     @Override public void dispose() {
-        disposed = true; timer.stop(); completion.dispose(); if (sourcePopup != null && sourcePopup.alive()) sourcePopup.popup().cancel(); catalog.close(); index.close(); invalidateSearch();
+        disposed = true; timer.stop(); completion.dispose(); if (sourcePopup != null && sourcePopup.alive()) sourcePopup.popup().cancel(); catalog.close(); index.close(); search.close();
     }
 
 }

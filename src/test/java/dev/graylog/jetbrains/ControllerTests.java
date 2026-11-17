@@ -17,7 +17,7 @@ import java.util.function.LongConsumer;
 final class ControllerTests {
     private static int assertions;
     static int run() {
-        sources(); index();
+        sources(); index(); search();
         return assertions;
     }
     private static Connection connection() {
@@ -32,70 +32,123 @@ final class ControllerTests {
         Queue tasks = new Queue(); Api api = new Api(); AtomicLong time = new AtomicLong(); AtomicInteger changes = new AtomicInteger();
         SourceCatalog catalog = new SourceCatalog(tasks, ignored -> api, time::get, changes::incrementAndGet);
         Connection connection = connection(); SearchRequest first = scope("first"), second = scope("second");
-        catalog.load(connection, first, List.of(), false);
+        catalog.load(OperationConfig.capture(connection, new IdeOptions()), first, List.of(), false);
         eq(true, catalog.state().getLoading()); eq(1, tasks.jobs.size());
-        catalog.load(connection, first.page(100), List.of(), false); eq(1, tasks.jobs.size());
+        catalog.load(OperationConfig.capture(connection, new IdeOptions()), first.page(100), List.of(), false); eq(1, tasks.jobs.size());
         tasks.finish(0); eq("first", catalog.state().getValues().values().getFirst().name()); eq(false, catalog.state().getLoading());
-        catalog.load(connection, first, List.of(), false); eq(1, tasks.jobs.size());
-        time.set(30_001); catalog.load(connection, first, List.of(), false); eq(2, tasks.jobs.size());
-        catalog.load(connection, second, List.of(), false); eq(true, tasks.jobs.get(1).future.isCancelled());
+        catalog.load(OperationConfig.capture(connection, new IdeOptions()), first, List.of(), false); eq(1, tasks.jobs.size());
+        time.set(30_001); catalog.load(OperationConfig.capture(connection, new IdeOptions()), first, List.of(), false); eq(2, tasks.jobs.size());
+        catalog.load(OperationConfig.capture(connection, new IdeOptions()), second, List.of(), false); eq(true, tasks.jobs.get(1).future.isCancelled());
         tasks.finish(1); eq(true, catalog.state().getLoading()); eq(null, catalog.state().getValues());
         tasks.finish(2); eq("second", catalog.state().getValues().values().getFirst().name());
-        connection.credentialId = "rotated"; catalog.load(connection, second, List.of(), false); eq(4, tasks.jobs.size());
+        connection.credentialId = "rotated"; catalog.load(OperationConfig.capture(connection, new IdeOptions()), second, List.of(), false); eq(4, tasks.jobs.size());
         tasks.finish(3);
-        catalog.load(connection, second, List.of(), true); eq(5, tasks.jobs.size()); tasks.finish(4);
+        catalog.load(OperationConfig.capture(connection, new IdeOptions()), second, List.of(), true); eq(5, tasks.jobs.size()); tasks.finish(4);
 
         api.failSources = true;
         var a = new com.google.gson.JsonObject(); a.addProperty("source", "worker");
         var b = new com.google.gson.JsonObject(); b.addProperty("source", "api");
-        catalog.load(connection, scope("failure"), List.of(new LogEvent("1", "", a), new LogEvent("2", "", a), new LogEvent("3", "", b)), false);
+        catalog.load(OperationConfig.capture(connection, new IdeOptions()), scope("failure"), List.of(new LogEvent("1", "", a), new LogEvent("2", "", a), new LogEvent("3", "", b)), false);
         tasks.finish(5);
         eq("aggregation unavailable", catalog.state().getError());
         eq("worker", catalog.state().getValues().values().get(1).name()); eq(2L, catalog.state().getValues().values().get(1).count());
         eq(true, catalog.state().getSummary().contains("loaded-page"));
         api.failSources = false;
-        catalog.load(connection, second, List.of(), true); int before = changes.get();
+        catalog.load(OperationConfig.capture(connection, new IdeOptions()), second, List.of(), true); int before = changes.get();
         catalog.close(); eq(true, tasks.jobs.get(6).future.isCancelled());
         tasks.finish(6); eq(before, changes.get()); eq(null, catalog.state().getValues());
-        catalog.load(connection, first, List.of(), false); eq(7, tasks.jobs.size());
+        catalog.load(OperationConfig.capture(connection, new IdeOptions()), first, List.of(), false); eq(7, tasks.jobs.size());
     }
     private static void index() {
         Queue tasks = new Queue(); Api api = new Api(); AtomicInteger changes = new AtomicInteger();
         PeriodIndexController controller = new PeriodIndexController(tasks, ignored -> api, state -> changes.incrementAndGet());
         Connection connection = connection(); SearchRequest first = scope("first"), second = scope("second"); Path root = Path.of("/fixture");
         controller.cancel(); eq(PeriodIndexController.Phase.IDLE, controller.state().getPhase());
-        controller.start(connection, first, root, false); eq(PeriodIndexController.Phase.LOADING, controller.state().getPhase());
-        controller.start(connection, first.page(100), root, false); eq(1, tasks.jobs.size());
-        controller.start(connection, second, root, false); eq(true, tasks.jobs.getFirst().future.isCancelled());
+        controller.start(OperationConfig.capture(connection, new IdeOptions()), first, root, false); eq(PeriodIndexController.Phase.LOADING, controller.state().getPhase());
+        controller.start(OperationConfig.capture(connection, new IdeOptions()), first.page(100), root, false); eq(1, tasks.jobs.size());
+        controller.start(OperationConfig.capture(connection, new IdeOptions()), second, root, false); eq(true, tasks.jobs.getFirst().future.isCancelled());
         tasks.finish(0); tasks.drainUi(); eq(0L, controller.state().getProgress()); eq(null, controller.state().getResult());
         tasks.finish(1); int completedChanges = changes.get(); tasks.drainUi(); eq(completedChanges, changes.get());
         eq(PeriodIndexController.Phase.READY, controller.state().getPhase());
         eq(6L, controller.state().getResult().messages());
-        controller.start(connection, second, root, false); eq(2, tasks.jobs.size());
+        controller.start(OperationConfig.capture(connection, new IdeOptions()), second, root, false); eq(2, tasks.jobs.size());
         connection.apiUrl = "https://other.example.org/api";
-        controller.start(connection, second, root, false); eq(3, tasks.jobs.size()); tasks.finish(2);
+        controller.start(OperationConfig.capture(connection, new IdeOptions()), second, root, false); eq(3, tasks.jobs.size()); tasks.finish(2);
 
-        api.failIndex = true; controller.start(connection, first, root, false); tasks.finish(3);
+        api.failIndex = true; controller.start(OperationConfig.capture(connection, new IdeOptions()), first, root, false); tasks.finish(3);
         eq(PeriodIndexController.Phase.FAILED, controller.state().getPhase()); eq("export incomplete", controller.state().getError());
-        api.failIndex = false; controller.start(connection, first, root, false); eq(5, tasks.jobs.size()); tasks.finish(4);
+        api.failIndex = false; controller.start(OperationConfig.capture(connection, new IdeOptions()), first, root, false); eq(5, tasks.jobs.size()); tasks.finish(4);
         eq(PeriodIndexController.Phase.READY, controller.state().getPhase());
         controller.cancel(); eq(PeriodIndexController.Phase.READY, controller.state().getPhase());
-        controller.start(connection, first, root, true); controller.cancel();
+        controller.start(OperationConfig.capture(connection, new IdeOptions()), first, root, true); controller.cancel();
         eq(PeriodIndexController.Phase.CANCELED, controller.state().getPhase());
         tasks.finish(5); tasks.drainUi(); eq(PeriodIndexController.Phase.CANCELED, controller.state().getPhase());
         controller.clear(); eq(PeriodIndexController.Phase.IDLE, controller.state().getPhase()); eq(null, controller.state().getResult());
-        controller.start(connection, second, root, false); int before = changes.get(); controller.close();
+        controller.start(OperationConfig.capture(connection, new IdeOptions()), second, root, false); int before = changes.get(); controller.close();
         tasks.finish(6); tasks.drainUi(); eq(before, changes.get()); eq(PeriodIndexController.Phase.IDLE, controller.state().getPhase());
     }
+    private static void search() {
+        Queue tasks = new Queue(); Api api = new Api(); AtomicInteger changes = new AtomicInteger();
+        SearchController controller = new SearchController(tasks, ignored -> api, state -> changes.incrementAndGet());
+        Connection connection = connection(); var config = OperationConfig.capture(connection, new IdeOptions());
+        SearchRequest window = scope("first");
+        var scope = new SearchScope("first", window.streamId(), window.from(), window.to(), "source", java.util.Set.of("worker"));
+        var first = new SearchController.Session(config, scope, 0, 100);
+        var second = new SearchController.Session(config, new SearchScope("second", window.streamId(), window.from(), window.to(), "source", java.util.Set.of()), 0, 100);
+        eq(SearchController.Phase.IDLE, controller.state().getPhase()); eq(false, controller.state().canNext());
+        controller.load(first); controller.load(second); eq(true, tasks.jobs.getFirst().future.isCancelled());
+        tasks.finish(0); eq(SearchController.Phase.LOADING, controller.state().getPhase()); eq(null, controller.state().getPage());
+        tasks.finish(1); eq(SearchController.Phase.READY, controller.state().getPhase()); eq(true, controller.state().canNext());
+        eq("second", controller.state().rows().getFirst().text("message"));
+        var loaded = controller.state().getPage();
+        IdeOptions nextOptions = new IdeOptions(); nextOptions.requestTimeoutSeconds = 31;
+        var nextConfig = OperationConfig.capture(connection, nextOptions);
+        controller.page(1, nextConfig); eq(loaded, controller.state().getPage()); eq(false, controller.state().canPrevious());
+        tasks.finish(2); eq(100, controller.state().getPage().getSession().request().offset());
+        eq(nextConfig, controller.state().getPage().getSession().getConfig());
+        eq(window.from(), api.searched.getLast().from()); eq(window.to(), api.searched.getLast().to());
+        eq(true, controller.state().canPrevious()); eq(true, controller.state().canNext());
+        loaded = controller.state().getPage(); api.failSearch = true; controller.page(1); tasks.finish(3);
+        eq(SearchController.Phase.FAILED, controller.state().getPhase()); eq(loaded, controller.state().getPage());
+        eq("search unavailable", controller.state().getError()); eq(loaded.getResult().events(), controller.state().rows());
+        api.failSearch = false; controller.load(controller.state().getRequested()); tasks.finish(4);
+        eq(10, controller.state().rows().size()); eq(false, controller.state().canNext());
+        loaded = controller.state().getPage();
+        var site = new ExceptionSites.Site(new ExceptionSites.Location(Path.of("/fixture/Test.php"), 3), List.of("FixtureException"), List.of(loaded.getResult().events().getFirst()));
+        int jobs = tasks.jobs.size(); controller.showExamples(site);
+        eq(1, controller.state().rows().size()); eq(false, controller.state().canNext()); eq(false, controller.state().canPrevious());
+        controller.page(-1); eq(jobs, tasks.jobs.size()); controller.showLoadedPage(); eq(jobs, tasks.jobs.size());
+        eq(loaded, controller.state().getPage()); eq(10, controller.state().rows().size()); eq(true, controller.state().canPrevious());
+        controller.load(first); tasks.finish(5); eq(true, api.searched.getLast().query().contains("source:"));
+        eq("first", first.getScope().facet(100).query()); eq(false, first.getScope().facet(100).query().contains("worker"));
+        var before = controller.state();
+        try { controller.load(new SearchController.Session(config, scope, 10_000, 100)); throw new AssertionError("Invalid page accepted"); }
+        catch (IllegalArgumentException expected) { assertions++; }
+        eq(before, controller.state());
+        controller.load(second); controller.clear(); tasks.finish(6); eq(SearchController.Phase.IDLE, controller.state().getPhase()); eq(null, controller.state().getDisplay());
+        controller.load(first); int callbacks = changes.get(); controller.close(); tasks.finish(7);
+        eq(callbacks, changes.get()); eq(true, tasks.jobs.get(7).future.isCancelled());
+        controller.load(first); eq(8, tasks.jobs.size());
+    }
+
     private static final class Api implements GraylogApi {
-        boolean failSources, failIndex;
+        boolean failSources, failIndex, failSearch;
+        final List<SearchRequest> searched = new ArrayList<>();
         @Override public List<Stream> streams() { return List.of(); }
-        @Override public Result search(SearchRequest request) { return new Result(List.of(), 0); }
+        @Override public Result search(SearchRequest request) throws IOException {
+            searched.add(request); if (failSearch) throw new IOException("search unavailable");
+            List<LogEvent> rows = new ArrayList<>();
+            for (int i = request.offset(); i < Math.min(210, request.offset() + request.limit()); i++) {
+                var value = new com.google.gson.JsonObject(); value.addProperty("message", request.query());
+                rows.add(new LogEvent(Integer.toString(i), "", value));
+            }
+            return new Result(rows, 210);
+        }
         @Override public Sources sources(SearchRequest request, String field) throws IOException {
             if (failSources) throw new IOException("aggregation unavailable");
             return new Sources(List.of(new SourceValue(request.query(), 42)), false);
         }
-        @Override public PeriodIndex indexPeriod(SearchRequest request, Connection connection, Path root, LongConsumer progress) throws IOException {
+        @Override public PeriodIndex indexPeriod(SearchRequest request, OperationConfig config, Path root, LongConsumer progress) throws IOException {
             progress.accept(500);
             if (failIndex) throw new IOException("export incomplete");
             return new PeriodIndex(List.of(), request.query().length(), 0);

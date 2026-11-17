@@ -185,12 +185,12 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
                 if (markerAt(editor, 102) == null) throw new AssertionError("Whole-period marks did not return after enabling");
                 Object beforePaging = SmokeUi.index(panel).getResult();
                 ((JButton) SmokeUi.field(panel, "next")).doClick();
-                await(report, () -> !(Boolean) SmokeUi.field(panel, "busy") && ((SearchRequest) SmokeUi.field(panel, "loadedRequest")).offset() == 100, () -> {
+                await(report, () -> !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && ((SearchRequest) SmokeUi.loadedRequest(panel)).offset() == 100, () -> {
                     if (SmokeUi.index(panel).getResult() != beforePaging || markerAt(editor, 102) == null) {
                         throw new AssertionError("Table paging replaced the period index");
                     }
                     ((JButton) SmokeUi.field(panel, "previous")).doClick();
-                    await(report, () -> !(Boolean) SmokeUi.field(panel, "busy") && ((SearchRequest) SmokeUi.field(panel, "loadedRequest")).offset() == 0, () -> {
+                    await(report, () -> !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && ((SearchRequest) SmokeUi.loadedRequest(panel)).offset() == 0, () -> {
                         if (SmokeUi.index(panel).getResult() != beforePaging) throw new AssertionError("Returning to the first page restarted the period scan");
                         verifyFilters(project, panel, report, editor, foreign, beforePaging);
                     }, "Returning to first table page");
@@ -224,8 +224,9 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
                 try {
                     ImageIO.write(new Robot().createScreenCapture(new Rectangle(0, 0, 1780, 1060)), "png", report.resolve("ide-smoke.png").toFile());
                     ReleaseScreenshots.capture(panel, report.resolve("explorer-panel.png"));
-                    SettingsSmoke.run(project, panel, report, () -> ChainSmoke.run(project, panel, report, () -> {
+                    SettingsSmoke.run(project, panel, report, () -> ChainSmoke.run(project, panel, report, () -> SettingsEffectsSmoke.run(project, panel, report, () -> {
                         try {
+                            HighlightRefreshSmoke.run(project, panel, report);
                             Disposer.dispose(panel);
                             if (graylogMarker(editor) != null || !foreign.isValid()) throw new AssertionError("Disposal did not clean up only Graylog markup");
                             for (var fileEditor : FileEditorManager.getInstance(project).getAllEditors()) if (fileEditor instanceof TextEditor text
@@ -239,7 +240,7 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
                             foreign.dispose();
                             Files.writeString(report.resolve("result.txt"), "PASS: PhpStorm searched a 100-row page of 128 messages and indexed three exception events at five source locations. Paging, gutter navigation, Settings, selected-event browser links, toggles and disposal passed. Inline exception messages show the logged phone value at Phone.php:46, preserve unrelated inlays and never modify source text.\n");
                         } catch (Throwable error) { fail(report, error); }
-                    }));
+                    })));
                 } catch (Throwable error) { fail(report, error); }
             });
             capture.setRepeats(false); capture.start();
@@ -247,7 +248,7 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
     }
 
     private void verifyFilters(Project project, GraylogPanel panel, Path report, Editor editor, RangeHighlighter foreign, Object index) throws Exception {
-        Object loaded = SmokeUi.field(panel, "loadedRequest");
+        Object loaded = SmokeUi.loadedRequest(panel);
         javax.swing.JTextField filter = (javax.swing.JTextField) SmokeUi.field(SmokeUi.field(panel, "connections"), "connectionFilter");
         javax.swing.JTree tree = (javax.swing.JTree) SmokeUi.field(SmokeUi.field(panel, "connections"), "tree");
         filter.setText("inventory");
@@ -256,16 +257,16 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
         var nodes = root.depthFirstEnumeration();
         while (nodes.hasMoreElements()) names.add(nodes.nextElement().toString());
         if (!names.contains("Inventory") || names.contains("API") || names.contains("Workers")) throw new AssertionError("Sidebar search does not filter stream names");
-        if (SmokeUi.field(panel, "loadedRequest") != loaded || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Sidebar search changed the log scope or exception index");
+        if (SmokeUi.loadedRequest(panel) != loaded || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Sidebar search changed the log scope or exception index");
         filter.setText("missing-connection-name");
         if (((javax.swing.tree.DefaultMutableTreeNode) tree.getModel().getRoot()).getChildCount() != 0) throw new AssertionError("Empty sidebar filter result is not empty");
         filter.setText("");
         if (tree.getSelectionPath() == null || !tree.getLastSelectedPathComponent().toString().equals("All messages")) throw new AssertionError("Clearing sidebar search lost the active stream");
         SmokeUi.chooseDropdown(panel, "Page size", "250");
-        await(report, () -> !(Boolean) SmokeUi.field(panel, "busy") && ((SearchRequest) SmokeUi.field(panel, "loadedRequest")).limit() == 250, () -> {
+        await(report, () -> !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && ((SearchRequest) SmokeUi.loadedRequest(panel)).limit() == 250, () -> {
             if (((JTable) SmokeUi.field(panel, "events")).getRowCount() != 128 || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Native page-size filter changed the period index or lost events");
             SmokeUi.chooseDropdown(panel, "Page size", "100");
-            await(report, () -> !(Boolean) SmokeUi.field(panel, "busy") && ((SearchRequest) SmokeUi.field(panel, "loadedRequest")).limit() == 100, () -> {
+            await(report, () -> !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && ((SearchRequest) SmokeUi.loadedRequest(panel)).limit() == 100, () -> {
                 if (SmokeUi.index(panel).getResult() != index) throw new AssertionError("Restoring page size rebuilt the index");
                 clickOlderException(project, panel, report, editor, foreign);
             }, "Restoring page size using native dropdown");
