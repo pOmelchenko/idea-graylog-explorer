@@ -6,7 +6,6 @@ import com.intellij.util.ui.JBUI;
 
 import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
-import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.event.MouseAdapter;
@@ -28,7 +27,7 @@ final class EventsTable extends JBTable {
         this.getColumnModel().getColumn(1).setPreferredWidth(65);
         this.getColumnModel().getColumn(2).setPreferredWidth(120);
         this.getColumnModel().getColumn(3).setPreferredWidth(500);
-        this.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+        this.setDefaultRenderer(Object.class, new ExplorerUi.PlainCellRenderer() {
             private Color stripe;
             @Override protected void paintComponent(java.awt.Graphics graphics) {
                 super.paintComponent(graphics);

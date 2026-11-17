@@ -19,6 +19,16 @@ final class ExplorerUiSmoke {
             Object colorPage = SmokeUi.field(settings, "sourceColors"), model = SmokeUi.field(colorPage, "model");
             @SuppressWarnings("unchecked") List<String[]> overrides = (List<String[]>) SmokeUi.field(model, "rows");
             JTable table = (JTable) SmokeUi.field(panel, "events"); String source = table.getValueAt(0, 2).toString();
+            for (int column : new int[]{2, 3}) {
+                String markup = "<html><b>literal log data</b>";
+                var cell = (JLabel) table.getCellRenderer(0, column).getTableCellRendererComponent(table, markup, false, false, 0, column);
+                if (!markup.equals(cell.getText()) || cell.getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey) != null)
+                    throw new AssertionError("Log cell interpreted message/source data as Swing HTML");
+            }
+            var fieldCell = ExplorerUi.cells();
+            fieldCell.getTableCellRendererComponent(new JTable(1, 1), "<html><b>literal field data</b>", false, false, 0, 0);
+            if (fieldCell.getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey) != null)
+                throw new AssertionError("Field cell interpreted log data as Swing HTML");
             overrides.add(new String[]{source, "#C05090"}); settings.apply(); settings.disposeUIResources();
             later(report, 250, () -> {
                 if (SmokeUi.field(panel, "loadedRequest") != request || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Source color change restarted the search or index");
@@ -57,7 +67,7 @@ final class ExplorerUiSmoke {
                                     later(report, 200, () -> {
                                         if (SmokeUi.field(completion, "popup") != null) throw new AssertionError("Escape did not dismiss completion");
                                         query.setText("message:\"Invalid phone number.\"");
-                                        Files.writeString(report.resolve("ui-details-result.txt"), "PASS: Focused/unfocused native tree, automatic field suggestions, Tab insertion, level values, Escape, separate exception text, visible local mapping and persistent per-source stripes verified. Source color Apply retains the loaded search and period index.\n");
+                                        Files.writeString(report.resolve("ui-details-result.txt"), "PASS: Focused/unfocused native tree, automatic field suggestions, Tab insertion, level values, Escape, separate exception text, visible local mapping and persistent per-source stripes verified. Source color Apply retains the loaded search and period index. Log cells display HTML markers literally.\n");
                                         RailSmoke.run(project, panel, report, done);
                                     });
                                 });

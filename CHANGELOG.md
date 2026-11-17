@@ -8,7 +8,7 @@
 - Use one Gradle Java/Kotlin build; the Python command delegates to Gradle and UI tests consume the actual packaged JARs.
 - Separate Password Safe update/rollback planning from Settings UI; preserve connection/profile order and invalidate connection tests on selection changes.
 - Remove obsolete page-only grouping, unreachable renderer branches and duplicated smoke reflection helpers. Reuse formatters and avoid repeated exception decoding during indexing.
-- Fix pagination integer overflow, source-filter self replacement and HTML interpretation in plain log tooltips.
+- Fix pagination integer overflow, source-filter self replacement and HTML interpretation in plain log cells and tooltips.
 
 ## 0.12.1 — 2026-11-17
 

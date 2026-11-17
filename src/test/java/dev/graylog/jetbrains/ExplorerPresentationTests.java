@@ -49,6 +49,13 @@ final class ExplorerPresentationTests {
         eq(false, document.getIterator(javax.swing.text.html.HTML.Tag.IMG).isValid());
         eq("ordinary text", ExplorerUi.plainTooltip("ordinary text"));
         eq(true, ExplorerUi.plainTooltip("x".repeat(1000)).length() <= 501);
+        var cell = new ExplorerUi.PlainCellRenderer();
+        var table = new javax.swing.JTable(1, 1);
+        for (String value : List.of("<html><b>log value</b>", "ordinary", "<HTML><i>field value</i>")) {
+            cell.getTableCellRendererComponent(table, value, false, false, 0, 0);
+            eq(value, cell.getText());
+            eq(null, cell.getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey));
+        }
         return assertions;
     }
     private static void eq(Object expected, Object actual) { assertions++; if (!java.util.Objects.equals(expected, actual)) throw new AssertionError("Expected " + expected + ", got " + actual); }

@@ -144,8 +144,11 @@ final class ExplorerUi {
         return javax.swing.plaf.basic.BasicHTML.isHTMLString(text)
                 ? "<html>" + com.intellij.openapi.util.text.StringUtil.escapeXmlEntities(text) + "</html>" : text;
     }
+    static class PlainCellRenderer extends DefaultTableCellRenderer {
+        PlainCellRenderer() { putClientProperty("html.disable", Boolean.TRUE); }
+    }
     static DefaultTableCellRenderer cells() {
-        return new DefaultTableCellRenderer() {
+        return new PlainCellRenderer() {
             @Override public Component getTableCellRendererComponent(JTable table, Object value, boolean selected, boolean focus, int row, int column) {
                 super.getTableCellRendererComponent(table, value, selected, focus, row, column);
                 setBorder(JBUI.Borders.empty(0, 8));

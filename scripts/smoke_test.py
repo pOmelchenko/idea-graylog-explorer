@@ -2,6 +2,8 @@
 """Launch an isolated IDE on Xvfb and exercise the actual plugin against a local fixture."""
 import argparse
 import os
+import re
+import hashlib
 from pathlib import Path
 import shutil
 import signal
@@ -33,6 +35,7 @@ def main():
     parser.add_argument("--sources-only", action="store_true")
     parser.add_argument("--with-legacy-prototype", action="store_true", help="Keep a disabled prototype installed to check migration conflicts")
     parser.add_argument("--reload", action="store_true", help="Exercise dynamic unload/update from a separate controller plugin")
+    parser.add_argument("--accept-eap-agreement", metavar="VERSION", help="Accept exactly this bundled EAP agreement version in isolated preferences; requires owner authorization")
     args = parser.parse_args()
     ide = find_ide(args.ide_home)
     if not shutil.which("Xvfb"):
@@ -76,6 +79,25 @@ def main():
     sources = list((ROOT / "src/smoke/java").rglob("*.java")) + list((ROOT / "src/reload/java").rglob("*.java"))
     subprocess.run([java_bin(ide, "javac"), "--release", "21", "-proc:none", "-classpath", classpath,
                     "-d", str(classes), *map(str, sources)], check=True)
+    preference_option = []
+    if args.accept_eap_agreement:
+        documents = []
+        for jar in jars:
+            if not jar.is_file():
+                continue
+            with zipfile.ZipFile(jar) as archive:
+                if "euaEap.html" in archive.namelist():
+                    documents.append(archive.read("euaEap.html"))
+        if len(documents) != 1:
+            raise SystemExit("Expected one bundled EAP agreement; acceptance was not recorded.")
+        document = documents[0]
+        match = re.search(rb"<!--\s*([0-9]+\.[0-9]+)\s*-->", document)
+        agreement_version = match.group(1).decode() if match else None
+        if agreement_version != args.accept_eap_agreement:
+            raise SystemExit(f"Bundled EAP agreement is {agreement_version}, authorized version is {args.accept_eap_agreement}; review the new terms first.")
+        preference_option = [f"-Djava.util.prefs.userRoot={workspace / 'preferences'}"]
+        subprocess.run([java_bin(ide, "java"), *preference_option, "-classpath", str(classes), "AcceptEapAgreement", agreement_version], check=True)
+        (report / "accepted-eap-agreement.txt").write_text(f"Explicitly authorized EAP agreement: {agreement_version}\nSHA256: {hashlib.sha256(document).hexdigest()}\nPreferences are isolated in the smoke workspace.\n")
     lib = workspace / "plugins/graylog-jetbrains/lib"
     lib.mkdir(parents=True)
     for library in libraries:
@@ -151,7 +173,7 @@ def main():
         options.write_text("\n".join(["-Xmx1024m" if args.reload else "-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.reload.plugin={workspace / 'plugins/graylog-jetbrains'}", f"-Dgraylog.reload.upgrade={workspace / 'upgrade/graylog-jetbrains'}", f"-Dgraylog.smoke.legacyInstalled={str(args.with_legacy_prototype).lower()}", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
                                     f"-Dgraylog.smoke.report={report}", f"-Dgraylog.smoke.theme={args.theme}", "-Didea.initially.ask.config=false",
                                     "-Didea.trust.all.projects=true", "-Dide.show.tips.on.startup.default.value=false",
-                                    "-Djb.consents.confirmation.enabled=false", "-Dawt.toolkit.name=XToolkit", "-Dsplash=false"]) + "\n")
+                                    "-Djb.consents.confirmation.enabled=false", "-Dawt.toolkit.name=XToolkit", "-Dsplash=false", *preference_option]) + "\n")
         import json
         info = json.loads((ide / "product-info.json").read_text())
         prefix = "PHPSTORM" if info.get("productCode") == "PS" else "IDEA"
@@ -185,6 +207,7 @@ def main():
                                    stdout=log, stderr=subprocess.STDOUT, env=env, start_new_session=True)
             deadline = time.monotonic() + (240 if args.reload else 180)
             last_update = 0
+            capture_available = True
             while time.monotonic() < deadline:
                 result = report / "result.txt"
                 if result.exists():
@@ -203,8 +226,15 @@ def main():
                 if time.monotonic() - last_update >= 15:
                     print("Waiting for isolated IDE smoke test…", flush=True)
                     last_update = time.monotonic()
-                    subprocess.run([java_bin(ide, "java"), "-Dawt.toolkit.name=XToolkit", "-classpath", str(classes), "ScreenCapture", str(report / "launch-state.png")],
-                                   env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+                    if capture_available:
+                        try:
+                            subprocess.run([java_bin(ide, "java"), "-Dawt.toolkit.name=XToolkit", "-classpath", str(classes), "ScreenCapture", str(report / "launch-state.png")],
+                                           env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, check=False)
+                        except (subprocess.TimeoutExpired, OSError) as error:
+                            # Optional diagnostics must not abort or extend the actual UI test.
+                            capture_available = False
+                            (report / "capture-warning.txt").write_text(str(error))
+                            print("Startup screenshot unavailable; waiting for the UI test result.", flush=True)
                 time.sleep(1)
             raise RuntimeError(f"IDE smoke test timed out; see {report / 'launcher.log'} and {workspace / 'log/idea.log'}")
     finally:
