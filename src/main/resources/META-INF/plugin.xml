@@ -1,7 +1,7 @@
 <idea-plugin url="https://github.com/pOmelchenko/idea-graylog-explorer">
     <id>dev.omelchenko.graylogexplorer</id>
     <name>Graylog Explorer</name>
-    <version>0.12.0</version>
+    <version>0.12.1</version>
     <vendor url="https://github.com/pOmelchenko/idea-graylog-explorer" email="p.Omelchenko@gmail.com">Pavel Omelchenko</vendor>
     <description><![CDATA[
       <p>Search Graylog logs without leaving your IDE. Browse streams, follow a request,
@@ -29,15 +29,13 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
-      <ul>
-        <li>Browse streams and filter sources with shared tree and popup selections.</li>
-        <li>Inspect structured exception chains and navigate mapped PHP source locations.</li>
-        <li>Highlight exceptions across the selected period and show source-backed logged values.</li>
-        <li>Public repository, documented privacy policy and reproducible release checks.</li>
-      </ul>
+      <p>Declare incompatibility with the old local prototype (dev.graylog.jetbrains)
+      to prevent duplicate Graylog tool window and action registrations.</p>
+      <p>Disable or uninstall the prototype before using the public plugin.</p>
     ]]></change-notes>
     <idea-version since-build="263" until-build="263.*"/>
     <depends>com.intellij.modules.platform</depends>
+    <incompatible-with>dev.graylog.jetbrains</incompatible-with>
     <depends optional="true" config-file="graylog-php.xml">com.jetbrains.php</depends>
     <extensionPoints>
         <extensionPoint name="variableHintProvider" interface="dev.graylog.jetbrains.VariableHintProvider" dynamic="true"/>

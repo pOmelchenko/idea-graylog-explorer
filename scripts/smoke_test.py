@@ -32,6 +32,7 @@ def main():
     parser.add_argument("--theme", choices=["light", "dark"], default="dark")
     parser.add_argument("--values-only", action="store_true")
     parser.add_argument("--sources-only", action="store_true")
+    parser.add_argument("--with-legacy-prototype", action="store_true", help="Keep a disabled prototype installed to check migration conflicts")
     args = parser.parse_args()
     ide = find_ide(args.ide_home)
     if not shutil.which("Xvfb"):
@@ -41,7 +42,7 @@ def main():
         shutil.rmtree(workspace)
     report = ROOT / "build/reports/smoke" / args.theme
     report.mkdir(parents=True, exist_ok=True)
-    for name in ["explorer-panel.png", "sources-window-panel.png", "sources-tree-panel.png", "php-values-editor.png", "result.txt", "startup.txt", "settings-result.txt", "settings-ide.png", "settings-project.png", "settings-failure.png", "variable-values-result.txt", "variable-values.png", "yii-result.txt", "yii-stack-trace.png",
+    for name in ["explorer-panel.png", "sources-window-panel.png", "sources-tree-panel.png", "php-values-editor.png", "legacy-conflict-result.txt", "result.txt", "startup.txt", "settings-result.txt", "settings-ide.png", "settings-project.png", "settings-failure.png", "variable-values-result.txt", "variable-values.png", "yii-result.txt", "yii-stack-trace.png",
                  "ui-details-result.txt", "ui-details-failure.png", "settings-sources.png", "settings-highlighting.png", "settings-search.png", "settings-network.png", "tree-focused.png", "tree-unfocused.png",
                  "query-completion.png", "query-level-values.png", "explorer-fields.png", "explorer-stack.png", "explorer-json.png", "explorer-exception-text.png",
                  "navigation-result.txt", "navigation-expanded.png", "navigation-collapsed.png", "source-tree-result.txt", "sources-tree.png", "sources-window.png", "source-tree-failure.png", "sources-result.txt", "sources-filter.png", "sources-selected.png", "sources-failure.png"]:
@@ -69,6 +70,22 @@ def main():
             target.writestr(item, value)
         for file in classes.rglob("*.class"):
             target.write(file, file.relative_to(classes).as_posix())
+    if args.with_legacy_prototype:
+        # Separate plugin directory, matching the real two-plugin migration scenario.
+        legacy = workspace / "plugins/legacy-graylog-prototype/lib"
+        legacy.mkdir(parents=True)
+        descriptor = ('<idea-plugin><id>dev.graylog.jetbrains</id><name>Graylog Explorer (legacy fixture)</name>'
+                      '<version>0.11.0</version><vendor>Test fixture</vendor><depends>com.intellij.modules.platform</depends>'
+                      '<extensions defaultExtensionNs="com.intellij"><toolWindow id="Graylog" anchor="bottom" '
+                      'factoryClass="dev.graylog.jetbrains.LegacyConflictFixture"/></extensions>'
+                      '<actions><action id="Graylog.SearchSelection" class="dev.graylog.jetbrains.LegacyConflictFixture$Search" '
+                      'text="Legacy Graylog search"/></actions></idea-plugin>')
+        with zipfile.ZipFile(legacy / "legacy-fixture.jar", "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("META-INF/plugin.xml", descriptor)
+            for file in classes.rglob("LegacyConflictFixture*.class"):
+                archive.write(file, file.relative_to(classes).as_posix())
+        (workspace / "config").mkdir(exist_ok=True)
+        (workspace / "config/disabled_plugins.txt").write_text("dev.graylog.jetbrains\n")
     project = workspace / "demo-project"
     (project / ".idea").mkdir(parents=True)
     (project / ".idea/.name").write_text("Graylog demo")
@@ -87,7 +104,7 @@ def main():
         config.mkdir(parents=True)
         (config / "ide.general.xml").write_text('<application><component name="GeneralSettings"><option name="showTipsOnStartup" value="false"/></component></application>')
         options = workspace / "smoke.vmoptions"
-        options.write_text("\n".join(["-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
+        options.write_text("\n".join(["-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.smoke.legacyInstalled={str(args.with_legacy_prototype).lower()}", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
                                     f"-Dgraylog.smoke.report={report}", f"-Dgraylog.smoke.theme={args.theme}", "-Didea.initially.ask.config=false",
                                     "-Didea.trust.all.projects=true", "-Dide.show.tips.on.startup.default.value=false",
                                     "-Djb.consents.confirmation.enabled=false", "-Dawt.toolkit.name=XToolkit", "-Dsplash=false"]) + "\n")

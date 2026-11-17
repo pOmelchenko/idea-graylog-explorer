@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.1 — 2026-11-17
+
+- Declare incompatibility with the old `dev.graylog.jetbrains` prototype so IDE startup does not register the same Graylog tool window and action twice.
+- Add an isolated UI fixture that keeps the prototype installed but disabled while testing the public plugin.
+
 ## 0.12.0 — 2026-11-17
 
 First public-source preparation release.

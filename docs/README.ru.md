@@ -3,15 +3,21 @@
 # Graylog Explorer — плагин JetBrains
 
 Независимый плагин для PhpStorm / IntelliJ IDEA **2026.3**. Интерфейс использует
-дерево подключений и streams, таблицу событий и панель подробностей. Версия 0.12.0.
+дерево подключений и streams, таблицу событий и панель подробностей. Версия 0.12.1.
 
 ## Установка
 
-1. Собрать проект или взять `build/distributions/graylog-jetbrains-0.12.0.zip`.
+1. Собрать проект или взять `build/distributions/graylog-jetbrains-0.12.1.zip`.
 2. В IDE открыть **Settings → Plugins → ⚙ → Install Plugin from Disk…**.
 3. Выбрать ZIP. Перезапустить IDE, если она предложит это сделать.
 4. Открыть **View → Tool Windows → Graylog**.
 5. Нажать **+**, указать имя, API URL и токен Graylog.
+
+Если установлен старый прототип с ID `dev.graylog.jetbrains`, отключить или удалить
+его и оставить публичный плагин `dev.omelchenko.graylogexplorer`, затем перезапустить
+IDE. Начиная с 0.12.1 несовместимость объявлена в дескрипторе: два плагина нельзя
+включать одновременно, поскольку они регистрируют одно окно Graylog и одинаковые
+действия. Имена компонентов настроек сохранены для перехода с прототипа.
 
 API URL: например, `https://graylog.example.org/api`. Можно указать адрес
 за reverse proxy: `https://example.org/graylog/api`. Если `/api` отсутствует,

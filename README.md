@@ -49,7 +49,7 @@ Marketplace publication is being prepared. Development ZIPs are available in the
 3. Select the plugin ZIP and restart if prompted.
 4. Open **View → Tool Windows → Graylog**.
 
-If you installed the earlier local prototype with ID `dev.graylog.jetbrains`, uninstall it before installing the public plugin, whose ID is `dev.omelchenko.graylogexplorer`. Persistent component names are retained, but the two plugin IDs must not be enabled together.
+If you installed the earlier local prototype with ID `dev.graylog.jetbrains`, disable or uninstall it before installing the public plugin, whose ID is `dev.omelchenko.graylogexplorer`. Persistent component names are retained, but the two plugin IDs must not be enabled together. Version 0.12.1 declares this incompatibility explicitly. If startup reports that the Graylog window or action is already registered, disable `dev.graylog.jetbrains`, keep `dev.omelchenko.graylogexplorer`, and restart the IDE.
 
 ## Connect
 
@@ -110,8 +110,8 @@ For real UI smoke tests on Linux, install Xvfb and use a local PhpStorm SDK:
 
 ```bash
 python3 build.py --ide-home /path/to/phpstorm
-python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme light
-python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme dark
+python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme light --with-legacy-prototype
+python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme dark --with-legacy-prototype
 ```
 
 Smoke tests launch a separate IDE with a generated project, a loopback-only fake Graylog service and isolated configuration. Production archives exclude smoke hooks and demo projects. Fixtures contain synthetic example data.

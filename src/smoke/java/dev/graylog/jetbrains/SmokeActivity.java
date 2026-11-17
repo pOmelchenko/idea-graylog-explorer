@@ -42,7 +42,17 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
     @Override public void runActivity(Project project) {
         if (!Boolean.getBoolean("graylog.smoke")) return;
         Path report = Path.of(System.getProperty("graylog.smoke.report"));
-        try { Files.writeString(report.resolve("startup.txt"), "Startup activity invoked\n"); }
+        try {
+            if (Boolean.getBoolean("graylog.smoke.legacyInstalled")) {
+                var id = com.intellij.openapi.extensions.PluginId.getId("dev.graylog.jetbrains");
+                var legacy = com.intellij.ide.plugins.PluginManagerCore.getPlugin(id);
+                if (legacy != null && legacy.isEnabled()) throw new AssertionError("Legacy prototype must not be enabled beside the public plugin");
+                var current = com.intellij.ide.plugins.PluginManagerCore.getPlugin(com.intellij.openapi.extensions.PluginId.getId("dev.omelchenko.graylogexplorer"));
+                if (current == null || !current.isEnabled()) throw new AssertionError("Public plugin was blocked by the disabled prototype");
+                Files.writeString(report.resolve("legacy-conflict-result.txt"), "PASS: Prototype installed but disabled; public plugin enabled.\n");
+            }
+            Files.writeString(report.resolve("startup.txt"), "Startup activity invoked\n");
+        }
         catch (Exception e) { throw new RuntimeException(e); }
         ApplicationManager.getApplication().executeOnPooledThread(() -> {
             try {
