@@ -1,0 +1,129 @@
+# Graylog Explorer
+
+Search Graylog logs, browse streams and sources, and connect recorded exceptions to local code in JetBrains IDEs.
+
+[![CI](https://github.com/pOmelchenko/idea-graylog-explorer/actions/workflows/ci.yml/badge.svg)](https://github.com/pOmelchenko/idea-graylog-explorer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+[Русская документация](docs/README.ru.md) · [Changelog](CHANGELOG.md) · [Privacy](PRIVACY.md) · [Report an issue](https://github.com/pOmelchenko/idea-graylog-explorer/issues)
+
+Independent project by Pavel Omelchenko. Not affiliated with Graylog or JetBrains.
+
+## Features
+
+- Browse connections, streams and saved searches in a native IDE tool window.
+- Search with field suggestions, absolute search windows, pagination and optional live polling.
+- Select multiple sources in the connection tree or a searchable, sortable popup. Source counts cover the query and period, including events outside the loaded page.
+- Identify sources with consistent colors; move and resize the Sources popup and retain its size.
+- Inspect fields, JSON, readable exception chains and mapped stack frames in separate tabs.
+- Open the selected event in the Graylog web interface, show nearby events and follow request IDs.
+- Build an exception index across the selected period, independently of table pagination. Gutter markers retain full counts and bounded examples.
+- Show exception messages beside source lines. With the PHP plugin, show historical string values beside exception arguments when a lossless constructor template proves the mapping.
+- Keep connections and appearance at IDE scope, with source mappings and log profiles at project scope. Store access tokens in the IDE Password Safe.
+
+## Screenshots
+
+Source filtering in a synthetic demo project:
+
+![Source colors, counts, tree and sortable popup](docs/images/sources-light.png)
+
+A historical value beside a PHP exception argument:
+
+![Selected Graylog value beside a PHP variable](docs/images/php-values-dark.png)
+
+## Compatibility
+
+- Targets IntelliJ Platform **2026.3**, build **263** only.
+- Built and UI-tested with PhpStorm. CI also verifies binary compatibility with IntelliJ IDEA in the same platform line.
+- PHP variable hints require the PHP plugin. General log exploration and source-line messages work without it.
+- Uses Graylog's legacy search/scroll endpoints and Search Scripting aggregation API. Available endpoints and permissions depend on your server.
+
+Compatibility with older platform versions is not declared. Do not widen the build range without compiling and verifying against those IDEs.
+
+## Install
+
+Marketplace publication is being prepared. Development ZIPs are available in the **plugin-distribution** artifact of a successful [CI run](https://github.com/pOmelchenko/idea-graylog-explorer/actions/workflows/ci.yml). GitHub may require you to sign in to download artifacts.
+
+1. Download and extract the CI artifact to obtain `graylog-jetbrains-<version>.zip`.
+2. Open **Settings → Plugins → ⚙ → Install Plugin from Disk…**.
+3. Select the plugin ZIP and restart if prompted.
+4. Open **View → Tool Windows → Graylog**.
+
+If you installed the earlier local prototype with ID `dev.graylog.jetbrains`, uninstall it before installing the public plugin, whose ID is `dev.omelchenko.graylogexplorer`. Persistent component names are retained, but the two plugin IDs must not be enabled together.
+
+## Connect
+
+1. Add a connection with **+**, or use **Settings → Tools → Graylog Explorer → Connections**.
+2. Enter your API URL, for example `https://graylog.example.org/api`, and an access token.
+3. Set a separate web URL if the web UI is hosted elsewhere. Reverse-proxy path prefixes are supported.
+4. Test the connection and select a stream.
+5. Under **Project settings**, map the remote source root, for example `/application`, to your local project root. An empty local root means the project directory.
+6. Configure service, exception and request-ID fields when your log schema differs from the defaults. Yii JSON-encoded `ctxt_exception` chains are recognized.
+
+Tokens use Graylog's HTTP Basic access-token mechanism. Browser SSO does not replace an API token. Use HTTPS for remote connections.
+
+Search example:
+
+```text
+level:3 AND application:demo
+```
+
+Source checkboxes apply immediately; the popup keeps a draft until **Apply**. **All sources** clears the source filter. Source lists exclude their own source selection so you can add another service.
+
+## Exception highlights and values
+
+The background index scans the complete selected search period. A result is published only after export completion and consistency checks; incomplete or changing exports are reported rather than presented as complete.
+
+Select an event and use **Open in Editor**. Each cause is associated with its own origin when the log provides one. PHP variable hints appear after the argument token, such as `$raw`, and are labeled **Graylog**. These represent values recorded in the selected log, not a live debugger session.
+
+The PHP adapter supports a conservative pattern: an exact exception class and source line, `throw new ExceptionClass($variable)`, and a constructor using `parent::__construct(sprintf('literal %s', $parameter))` with one unmodified string parameter. Ambiguous calls, transformations, named arguments, unsaved source files and unmatched templates retain the ordinary source-line message. The source revision must match the deployed service; commit hashes are not checked.
+
+Control hints under **Settings → Tools → Graylog Explorer → Highlighting**, or disable **Code marks** in the tool window. Cancel or refresh the full-period scan from the status bar.
+
+## Build and test
+
+The normal build uses Gradle, JDK **25** and a pinned downloadable PhpStorm SDK:
+
+```bash
+./gradlew check buildPlugin verifyPluginStructure verifyPlugin
+```
+
+Output: `build/distributions/graylog-jetbrains-<version>.zip`.
+
+To use an installed PhpStorm SDK:
+
+```bash
+./gradlew -PideHome=/path/to/phpstorm check buildPlugin verifyPluginStructure verifyPlugin
+```
+
+`IDE_HOME` is also supported. The SDK's JBR can supply `JAVA_HOME`. The local-SDK verifier checks that SDK; CI additionally checks the pinned IntelliJ IDEA target. Versions are defined in `gradle.properties`.
+
+The original offline builder remains available and does not download Gradle dependencies:
+
+```bash
+python3 build.py --ide-home /path/to/phpstorm
+```
+
+It runs the core HTTP/parser/settings tests and builds a ZIP. It does not run Plugin Verifier or sign the archive.
+
+For real UI smoke tests on Linux, install Xvfb and use a local PhpStorm SDK:
+
+```bash
+python3 build.py --ide-home /path/to/phpstorm
+python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme light
+python3 scripts/smoke_test.py --ide-home /path/to/phpstorm --theme dark
+```
+
+Smoke tests launch a separate IDE with a generated project, a loopback-only fake Graylog service and isolated configuration. Production archives exclude smoke hooks and demo projects. Fixtures contain synthetic example data.
+
+## Contributing and releases
+
+The manually invoked **Isolated UI smoke tests** workflow runs both themes against the pinned SDK without a real Graylog server.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and [docs/PUBLISHING.md](docs/PUBLISHING.md) for the first Marketplace upload, signing secrets and the manually invoked publication workflow. CI runs on pushes and pull requests; Marketplace publication is not triggered by an ordinary push.
+
+Please report security issues privately as described in [SECURITY.md](SECURITY.md). Remove credentials, identifying log data and internal URLs from public reports.
+
+## License and trademarks
+
+[MIT](LICENSE), copyright © 2026 Pavel Omelchenko. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for build tooling notices. Graylog, JetBrains, IntelliJ IDEA and PhpStorm are trademarks of their respective owners; no affiliation or endorsement is claimed.

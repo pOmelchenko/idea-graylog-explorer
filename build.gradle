@@ -1,0 +1,89 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+
+plugins {
+    id 'java'
+    id 'org.jetbrains.intellij.platform' version '2.20.1'
+}
+
+group = 'dev.omelchenko'
+version = providers.gradleProperty('pluginVersion').get()
+
+def localIde = providers.gradleProperty('ideHome').orElse(providers.environmentVariable('IDE_HOME'))
+
+repositories {
+    mavenCentral()
+    intellijPlatform { defaultRepositories() }
+}
+
+dependencies {
+    intellijPlatform {
+        if (localIde.isPresent()) {
+            local(localIde.get())
+        } else {
+            phpstorm(providers.gradleProperty('platformVersion').get())
+        }
+        bundledPlugin('com.jetbrains.php')
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+tasks.register('integrationTest', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath + sourceSets.test.compileClasspath
+    mainClass = 'dev.graylog.jetbrains.CoreTests'
+    jvmArgs '--add-modules=jdk.httpserver', '-ea'
+    workingDir = projectDir
+}
+tasks.named('test') { enabled = false }
+tasks.named('check') { dependsOn 'integrationTest' }
+
+intellijPlatform {
+    buildSearchableOptions = false
+    pluginConfiguration {
+        version = project.version.toString()
+        ideaVersion { sinceBuild = '263'; untilBuild = '263.*' }
+    }
+    pluginVerification {
+        ides {
+            current()
+            if (providers.gradleProperty('verifyIdea').orElse('false').get().toBoolean()) {
+                create(IntelliJPlatformType.IntellijIdea, providers.gradleProperty('ideaVersion').get())
+            }
+        }
+    }
+    signing {
+        certificateChain = providers.environmentVariable('CERTIFICATE_CHAIN')
+        privateKey = providers.environmentVariable('PRIVATE_KEY')
+        password = providers.environmentVariable('PRIVATE_KEY_PASSWORD')
+    }
+    publishing {
+        token = providers.environmentVariable('PUBLISH_TOKEN')
+        channels = providers.gradleProperty('releaseChannel').map { it == 'stable' ? ['default'] : [it] }.orElse(['beta'])
+    }
+}
+
+tasks.named('buildPlugin') {
+    dependsOn 'check'
+    archiveFileName = "graylog-jetbrains-${project.version}.zip"
+}
+tasks.named('jar') {
+    from('LICENSE') { into 'META-INF' }
+}
+
+tasks.named('wrapper') { gradleVersion = '9.3.0' }
+
+tasks.register('writeIdeHome') {
+    doLast {
+        def destination = layout.buildDirectory.file('ide-home.txt').get().asFile
+        destination.parentFile.mkdirs()
+        destination.text = intellijPlatform.platformPath.toString()
+    }
+}

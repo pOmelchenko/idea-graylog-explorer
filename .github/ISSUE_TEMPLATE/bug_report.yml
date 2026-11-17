@@ -1,0 +1,25 @@
+name: Bug report
+description: Report a reproducible problem using synthetic or redacted data
+body:
+  - type: markdown
+    attributes:
+      value: Do not include tokens, personal log data or private server addresses. Report vulnerabilities using SECURITY.md.
+  - type: input
+    id: versions
+    attributes:
+      label: Plugin version and IDE build
+      placeholder: Graylog Explorer 0.12.0, PhpStorm 2026.3 build 263...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction and expected behavior
+      description: Include the steps, actual result and expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Minimal synthetic log / relevant diagnostics
+      description: Replace credentials, user identifiers, real values and internal paths before sharing.

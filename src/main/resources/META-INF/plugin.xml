@@ -1,0 +1,60 @@
+<idea-plugin url="https://github.com/pOmelchenko/idea-graylog-explorer">
+    <id>dev.omelchenko.graylogexplorer</id>
+    <name>Graylog Explorer</name>
+    <version>0.12.0</version>
+    <vendor url="https://github.com/pOmelchenko/idea-graylog-explorer" email="p.Omelchenko@gmail.com">Pavel Omelchenko</vendor>
+    <description><![CDATA[
+      <p>Search Graylog logs without leaving your IDE. Browse streams, follow a request,
+      inspect event fields and highlight observed exceptions in local source files.</p>
+      <p>Code gutter markers count exceptions across the entire selected period, independent
+      of table pagination. A background scroll export builds the complete index and retains
+      bounded examples per source location. Selected exceptions are highlighted more strongly.</p>
+      <p>Exception messages and logged values appear beside the corresponding source lines
+      and in gutter tooltips, including each cause in a structured exception chain.</p>
+      <p>With the PHP plugin, selected-event string values appear beside variables when
+      the exact exception origin and a lossless constructor message template prove the
+      argument mapping. These are historical log values; source files are never changed.</p>
+      <p>IDE-wide connections and appearance, with project-specific source mappings and log
+      fields, are available under Settings → Tools → Graylog Explorer.</p>
+      <p>Query suggestions include log fields and severity values. Stable source colors identify
+      services across pages. Navigate mapped local stack frames or read the exception text
+      in a separate tab.</p>
+      <p>Filter multiple sources using a server aggregation across the selected query and time
+      range, including sources outside the loaded message page. Source filters apply to logs
+      and the full-period exception index.</p>
+      <p>Source checkboxes and counts are also available in the active connection tree.
+      The Sources popup supports native title dragging, resizing with a remembered size
+      and numeric sorting by clicking Source or Messages headers.</p>
+      <p>Supports access-token authentication, saved searches and configurable polling.
+      Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
+    ]]></description>
+    <change-notes><![CDATA[
+      <ul>
+        <li>Browse streams and filter sources with shared tree and popup selections.</li>
+        <li>Inspect structured exception chains and navigate mapped PHP source locations.</li>
+        <li>Highlight exceptions across the selected period and show source-backed logged values.</li>
+        <li>Public repository, documented privacy policy and reproducible release checks.</li>
+      </ul>
+    ]]></change-notes>
+    <idea-version since-build="263" until-build="263.*"/>
+    <depends>com.intellij.modules.platform</depends>
+    <depends optional="true" config-file="graylog-php.xml">com.jetbrains.php</depends>
+    <extensionPoints>
+        <extensionPoint name="variableHintProvider" interface="dev.graylog.jetbrains.VariableHintProvider" dynamic="true"/>
+    </extensionPoints>
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Graylog" anchor="bottom" icon="/icons/graylog.svg"
+                    factoryClass="dev.graylog.jetbrains.GraylogToolWindowFactory"/>
+        <applicationConfigurable parentId="tools" id="dev.graylog.jetbrains.settings" displayName="Graylog Explorer"
+                                 instance="dev.graylog.jetbrains.GraylogIdeConfigurable"/>
+        <projectConfigurable parentId="dev.graylog.jetbrains.settings" id="dev.graylog.jetbrains.settings.project"
+                             displayName="Project settings" nonDefaultProject="true"
+                             instance="dev.graylog.jetbrains.GraylogProjectConfigurable"/>
+    </extensions>
+    <actions>
+        <action id="Graylog.SearchSelection" class="dev.graylog.jetbrains.SearchSelectionAction"
+                text="Search in Graylog" description="Find the selected text in Graylog">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

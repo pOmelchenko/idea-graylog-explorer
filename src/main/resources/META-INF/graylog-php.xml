@@ -1,0 +1,5 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="dev.omelchenko.graylogexplorer">
+        <variableHintProvider implementation="dev.graylog.jetbrains.PhpVariableHintProvider"/>
+    </extensions>
+</idea-plugin>

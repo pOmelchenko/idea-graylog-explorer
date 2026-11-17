@@ -1,0 +1,8 @@
+{
+  "message": "Invalid phone number.",
+  "level": 3,
+  "file": "/application/src/Graphql/Mutation.php",
+  "line": "59",
+  "ctxt_category": "GraphQL\\Error\\UserError",
+  "ctxt_exception": "{\"class\":\"GraphQL\\\\Error\\\\UserError\",\"message\":\"Invalid phone number.\",\"code\":723,\"file\":\"/application/src/Graphql/Mutation.php:59\",\"trace\":[\"/application/vendor/example/graphql-adapter/src/base/GraphQLField.php:48\",\"/application/vendor/example/graphql-adapter/src/traits/ShouldValidate.php:37\",\"/application/vendor/webonyx/graphql-php/src/Executor/ReferenceExecutor.php:474\",\"/application/vendor/webonyx/graphql-php/src/Executor/ReferenceExecutor.php:857\",\"/application/vendor/webonyx/graphql-php/src/Executor/ReferenceExecutor.php:474\"],\"previous\":{\"class\":\"Demo\\\\Profile\\\\PhoneInvalidException\",\"message\":\"Demo\\\\Profile\\\\PhoneInvalidException\",\"code\":0,\"file\":\"/application/src/Profile/PhoneService.php:91\",\"trace\":[\"/application/src/Graphql/Mutation.php:115\",\"/application/src/Graphql/Mutation.php:54\",\"/application/vendor/example/graphql-adapter/src/base/GraphQLField.php:48\"]}}"
+}

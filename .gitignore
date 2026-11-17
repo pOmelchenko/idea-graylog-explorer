@@ -1,0 +1,16 @@
+.gradle/
+.gradle-home/
+.idea/
+*.iml
+build/
+out/
+local.properties
+__pycache__/
+.intellijPlatform/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
