@@ -1,0 +1,7 @@
+System.InvalidOperationException: outer
+ ---> System.ArgumentException: inner
+   at App.Validator.Check() in C:\app\Validator.cs:line 12
+   at App.Service.Run() in C:\app\Service.cs:line 34
+   --- End of inner exception stack trace ---
+   at App.Service.Run() in C:\app\Service.cs:line 42
+   at App.Program.Main() in C:\app\Program.cs:line 8

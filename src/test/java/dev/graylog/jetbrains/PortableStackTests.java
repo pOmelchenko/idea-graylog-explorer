@@ -23,11 +23,22 @@ final class PortableStackTests {
                 eq(fixture.getAsJsonArray("origins").get(i).getAsInt(), chain.get(i).origin().line(), name + " origin");
             }
             Connection connection = new Connection(); connection.remoteRoot = "/srv/app"; connection.localRoot = "/local";
-            if (name.equals("dotnet")) connection.remoteRoot = "C:/app";
+            if (name.startsWith("dotnet")) connection.remoteRoot = "C:/app";
             var sites = CoreTests.sites(List.of(event), connection, Path.of("/local"));
             check(!sites.isEmpty(), name + " produces editor sites");
             check(sites.stream().allMatch(s -> s.location().file().startsWith("/local")), name + " confined to root");
             eq(1L, sites.getFirst().count(), name + " count");
+            for (var part : chain) check(sites.stream().anyMatch(s -> s.location().line() == part.origin().line() && s.types().contains(part.type())), name + " editor site for " + part.type());
+            if (name.equals("dotnet-inner")) {
+                eq(List.of(8), chain.getFirst().trace().stream().map(SourceLocation::line).toList(), "outer frames resume after boundary");
+                eq(List.of(34), chain.get(1).trace().stream().map(SourceLocation::line).toList(), "inner frames stop at boundary");
+            }
+            if (name.equals("dotnet-nested")) {
+                eq(List.of(8), chain.getFirst().trace().stream().map(SourceLocation::line).toList(), "nested outer frames");
+                eq(List.of(), chain.get(1).trace(), "middle has only its own origin");
+                eq(List.of(20), chain.get(2).trace().stream().map(SourceLocation::line).toList(), "innermost frames");
+                eq(List.of("outer", "middle", "inner"), chain.stream().map(ExceptionDetails.Part::message).toList(), "inline cause messages separated");
+            }
         }
         for (String text : List.of("at app.Service.run(Native Method)", "at app.Service.run(Unknown Source)",
                 "File \"<stdin>\", line 42", "at /app/main.js:0:2", "at /app/main.js:999999999999999:2",

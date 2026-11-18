@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.1
+
+- Preserve explicit exception file/line metadata when a text stack starts at a caller; keep caller frames and the original exception text.
+- Restore .NET parent frames after inner-exception boundaries, including nested causes with inline headers.
+- Cover every cause's editor location and full-period export with shared runtime fixtures and explicit-origin regressions.
+
 ## 0.15.0
 
 - Parse JVM, Python, V8 JavaScript/TypeScript, Go, Ruby, .NET and Rust text stack frames, alongside PHP; retain raw text and normalize exception causes.

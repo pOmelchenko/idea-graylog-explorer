@@ -14,7 +14,8 @@ import java.util.stream.Collectors;
 final class PortableExportTests {
     private static int assertions;
     static int run() throws Exception {
-        for (String name : List.of("php", "jvm", "kotlin", "python", "node", "go", "ruby", "dotnet", "rust")) {
+        for (var fixture : JsonParser.parseString(Files.readString(Path.of("src/test/resources/stacks/fixtures.json"))).getAsJsonArray()) {
+            String name = fixture.getAsJsonObject().get("name").getAsString();
             JsonObject fields = base(); fields.addProperty("stack_trace", Files.readString(Path.of("src/test/resources/stacks/" + name + ".txt")));
             transport(fields, 0, name);
         }
@@ -22,13 +23,16 @@ final class PortableExportTests {
         error.addProperty("stack_trace", "at run (/srv/app/main.js:42:2)");
         JsonObject nested = base(); nested.add("error", error); transport(nested, 1, "ECS object");
         JsonObject flat = base(); error.entrySet().forEach(e -> flat.add("error." + e.getKey(), e.getValue())); transport(flat, 0, "ECS dotted fields");
+        JsonObject explicit = base(); explicit.addProperty("exception_class", "RuntimeException");
+        explicit.addProperty("exception_file", "/srv/app/Throw.php"); explicit.addProperty("exception_line", 10);
+        explicit.addProperty("stack_trace", "#0 /srv/app/Caller.php(20): run()"); transport(explicit, 0, "explicit origin");
         return assertions;
     }
     private static JsonObject base() { JsonObject fields = new JsonObject(); fields.addProperty("_id", "portable"); fields.addProperty("level", 3); return fields; }
     private static void transport(JsonObject fields, int expectedHydration, String label) throws Exception {
         var expectedEvent = new LogEvent("portable", "fixture", fields);
         Connection connection = new Connection(); connection.remoteRoot = "/srv/app"; connection.localRoot = "/local";
-        if (label.equals("dotnet")) connection.remoteRoot = "C:/app";
+        if (label.startsWith("dotnet")) connection.remoteRoot = "C:/app";
         var expected = CoreTests.sites(List.of(expectedEvent), connection, Path.of("/local"));
         AtomicInteger hydrated = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -56,6 +60,7 @@ final class PortableExportTests {
             eq(expected.stream().map(ExceptionSites.Site::types).toList(), actual.sites().stream().map(ExceptionSites.Site::types).toList(), label + " types");
             eq(expectedHydration, hydrated.get(), label + " hydration");
             if (label.startsWith("ECS")) eq(42, actual.sites().getFirst().location().line(), label + " source");
+            if (label.equals("explicit origin")) eq(10, actual.sites().getFirst().location().line(), label + " source");
         } finally { server.stop(0); }
     }
     private static Map<String, String> params(HttpExchange exchange) {

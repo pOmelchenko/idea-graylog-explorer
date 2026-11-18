@@ -29,6 +29,11 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.15.1</b></p>
+      <ul>
+        <li>Preserve explicit exception origins alongside caller-only text stacks.</li>
+        <li>Keep .NET outer and nested inner exception frames attached to their own causes.</li>
+      </ul>
       <p><b>0.15.0</b></p>
       <ul>
         <li>Parse JVM, Python, JavaScript/TypeScript, Go, Ruby, .NET and Rust stack frames alongside PHP; preserve original exception text.</li>
