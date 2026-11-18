@@ -22,6 +22,9 @@ final class PortableExportTests {
             ecs.addProperty("message", "Schema message"); ecs.addProperty("stack_trace", fields.get("stack_trace").getAsString());
             JsonObject objectFields = base(); objectFields.add("error", ecs); transport(objectFields, 1, name + " ECS object");
             JsonObject dottedFields = base(); ecs.entrySet().forEach(e -> dottedFields.add("error." + e.getKey(), e.getValue())); transport(dottedFields, 0, name + " ECS dotted");
+            ecs.remove("type");
+            JsonObject untypedObject = base(); untypedObject.add("error", ecs); transport(untypedObject, 1, name + " ECS object without type");
+            JsonObject untypedDotted = base(); ecs.entrySet().forEach(e -> untypedDotted.add("error." + e.getKey(), e.getValue())); transport(untypedDotted, 0, name + " ECS dotted without type");
         }
         JsonObject error = new JsonObject(); error.addProperty("type", "TypeError"); error.addProperty("message", "bad value");
         error.addProperty("stack_trace", "at run (/srv/app/main.js:42:2)");

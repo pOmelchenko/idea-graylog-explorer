@@ -6,7 +6,7 @@ import java.util.List;
 final class EcsExceptionDecoder implements ExceptionDecoder {
     public List<ExceptionDetails.Part> decode(LogEvent event) {
         var object = ExceptionDetails.object(event.element("error"));
-        if (object == null && !event.text("error.type").isBlank()) {
+        if (object == null && (!event.text("error.type").isBlank() || !event.text("error.stack_trace").isBlank())) {
             object = new com.google.gson.JsonObject();
             object.addProperty("type", event.text("error.type")); object.addProperty("message", event.text("error.message"));
             object.addProperty("stack_trace", event.text("error.stack_trace"));

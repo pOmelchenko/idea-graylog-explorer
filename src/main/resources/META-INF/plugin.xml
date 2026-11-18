@@ -29,6 +29,8 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.15.3</b></p>
+      <ul><li>Retain exception locations from dotted ECS stacks even when error.type is absent.</li></ul>
       <p><b>0.15.2</b></p>
       <ul>
         <li>Keep JVM uncaught exceptions and their causes at their own source locations.</li>

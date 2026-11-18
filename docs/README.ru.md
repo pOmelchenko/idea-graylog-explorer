@@ -7,7 +7,7 @@
 
 ## Установка
 
-1. Собрать проект или взять `build/distributions/graylog-jetbrains-0.15.2.zip`.
+1. Собрать проект или взять `build/distributions/graylog-jetbrains-0.15.3.zip`.
 2. В IDE открыть **Settings → Plugins → ⚙ → Install Plugin from Disk…**.
 3. Выбрать ZIP. Перезапустить IDE, если она предложит это сделать.
 4. Открыть **View → Tool Windows → Graylog**.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.15.3
+
+- Decode dotted ECS stack data when type metadata is absent or blank, retaining the same frame/cause locations as native error objects.
+- Check every runtime fixture without error.type through native/dotted decoding and full-period export/hydration; keep message-only and blank-stack records outside this fallback.
+
 ## 0.15.2
 
 - Recognize JVM uncaught-exception headers, including custom throwable names, before assigning frames to causes.
