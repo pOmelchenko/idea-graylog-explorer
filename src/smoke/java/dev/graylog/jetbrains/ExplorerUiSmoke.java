@@ -13,6 +13,9 @@ import java.util.List;
 /** Exercises the reported focus, completion, mapping and source-color regressions. */
 final class ExplorerUiSmoke {
     static void run(Project project, GraylogPanel panel, Path report, Runnable done) {
+        MessageInspectorSmoke.run(project, panel, report, () -> runDetails(project, panel, report, done));
+    }
+    private static void runDetails(Project project, GraylogPanel panel, Path report, Runnable done) {
         try {
             Object request = SmokeUi.loadedRequest(panel), index = SmokeUi.index(panel).getResult();
             GraylogIdeConfigurable settings = new GraylogIdeConfigurable(); settings.createComponent(); settings.reset();
@@ -31,6 +34,7 @@ final class ExplorerUiSmoke {
             later(report, 250, () -> {
                 if (SmokeUi.loadedRequest(panel) != request || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Source color change restarted the search or index");
                 if (!GraylogIdeSettings.get().getState().options.sourceColors.get(source).equals("#C05090")) throw new AssertionError("Source color override not saved");
+                SourceBandsSmoke.run(report);
                 checkStripe(table, 0, Color.decode("#C05090"));
                 table.clearSelection(); checkStripe(table, 0, Color.decode("#C05090")); table.setRowSelectionInterval(0, 0);
                 table.getColumnModel().moveColumn(2, 0); checkStripe(table, 0, Color.decode("#C05090"));

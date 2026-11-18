@@ -23,7 +23,7 @@ final class RailSmoke {
             SmokeUi.clickToolbar(panel, "Collapse all connections");
             if (tree.getRowCount() >= expandedRows) throw new AssertionError("Collapse all did not collapse the navigation tree");
             SmokeUi.clickToolbar(panel, "Expand all connections");
-            if (tree.getRowCount() != expandedRows || !tree.getLastSelectedPathComponent().toString().equals("All messages")) throw new AssertionError("Expand all did not restore the active tree selection");
+            if (tree.getRowCount() != expandedRows || !tree.getLastSelectedPathComponent().toString().equals("All messages")) throw new AssertionError("Expand all did not restore the active tree selection: before=" + expandedRows + ", after=" + tree.getRowCount() + ", selected=" + tree.getLastSelectedPathComponent());
             sameScope(panel, loaded, index, query, text);
             ActionToolbar actual = rail(panel);
             ActionToolbar reference = ActionManager.getInstance().createActionToolbar("Git.Log.Branches", new DefaultActionGroup(new DumbAwareAction("Reference", null, AllIcons.General.Add) {

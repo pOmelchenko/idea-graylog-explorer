@@ -41,6 +41,7 @@ public final class CoreTests {
         assertions += TextTraceReviewTests.run();
         assertions += RuntimeNormalizationTests.run();
         assertions += PortableExportTests.run();
+        assertions += SourceBandsTests.run();
         assertions += OperationPolicyTests.run();
         assertions += ConnectionUpdatesTests.run();
         System.out.println("PASS: " + assertions + " assertions (URLs, queries, event parsing, exception locations, path mapping, HTTP contracts and cancellation)");

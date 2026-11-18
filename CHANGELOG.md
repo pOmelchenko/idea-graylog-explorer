@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.16.5
+
+- Keep filesystem stack locations when the same line contains URL arguments; filter virtual locations per match and decode file URLs individually.
+- Retain types parsed from ECS stacks when type metadata is missing or blank; explicitly reported types, messages, origins and structured causes keep their precedence.
+- Check both fixes across runtime fixtures, editor sites and full-period export/hydration.
+
+## 0.16.4
+
+- Decode dotted ECS stacks without error.type through the Kotlin adapter; inherit all missing-type runtime/export regressions.
+
+## 0.16.3
+
+- Reuse the shared Kotlin text parser for JVM uncaught headers and ECS runtime ordering; retain UI migration, source bands and message resizing.
+
+## 0.16.2
+
+- Carry PR #3 review fixes into the Kotlin decoder: preserve explicit throw origins and correctly unwind .NET inner stacks, with the same parser/editor/export regression fixtures.
+
+## 0.16.1
+
+- Resize the event message above the inspector tabs with a native divider and remember the chosen height, making long SQL and multiline log messages readable.
+
+## 0.16.0
+
+- Join adjacent visible events from the same source into continuous color segments, retaining rounded ends and the splitter inset. Respect sorting, filtering, selection and source-color overrides; never merge distinct sources merely because their colors match.
+- Move exception parsers/models, Explorer views, connection transactions, editor decorations/PHP hints and the panel to Kotlin. Keep persistent XML beans, credential keys, extension IDs and Java callers compatible.
+- Add adjacency/raster contracts and actual IDE table-renderer checks for source segments, including sorted and filtered view order.
+
 ## 0.15.4
 
 - Keep filesystem stack locations when the same line contains URL arguments; filter virtual locations per match and decode file URLs individually.
