@@ -9,9 +9,10 @@ final class StackTraceParsers {
     private static final Pattern PYTHON = Pattern.compile("^\\s*File \\\"([^\\\"]+)\\\", line (\\d+)(?:,.*)?$");
     private static final Pattern DOTNET = Pattern.compile("^\\s*at .+? in (.+?):line (\\d+)\\s*$");
     private static final Pattern JVM = Pattern.compile("^\\s*at (?:[^\\s(]*/)?([\\w.$]+)\\.([^\\s(]+)\\(([^():]+\\.(?:java|kt|kts)):(\\d+)\\)\\s*$");
-    private static final Pattern PATH = Pattern.compile("((?:[A-Za-z]:)?[/\\\\][^\\r\\n\\\"'<>]*?\\.(?:php|phtml|jsx?|tsx?|mjs|cjs|java|kt|kts|py|go|rb|cs|fs|rs|scala|swift|c|cpp|h)|(?:[\\w.@-]+[/\\\\])*[\\w.@-]+\\.(?:php|phtml|jsx?|tsx?|mjs|cjs|java|kt|kts|py|go|rb|cs|fs|rs|scala|swift|c|cpp|h))(?::|\\()(\\d+)(?::\\d+)?\\)?");
+    private static final Pattern PATH = Pattern.compile("(?<![A-Za-z0-9.@+-])((?:[A-Za-z]:)?[/\\\\][^\\r\\n\\\"'<>]*?\\.(?:php|phtml|jsx?|tsx?|mjs|cjs|java|kt|kts|py|go|rb|cs|fs|rs|scala|swift|c|cpp|h)|(?:[\\w.@-]+[/\\\\])*[\\w.@-]+\\.(?:php|phtml|jsx?|tsx?|mjs|cjs|java|kt|kts|py|go|rb|cs|fs|rs|scala|swift|c|cpp|h))(?::|\\()(\\d+)(?::\\d+)?\\)?");
     private static final List<StackTraceParser> PARSERS = List.of(
             line -> match(PYTHON, line), line -> match(DOTNET, line), StackTraceParsers::jvm, StackTraceParsers::paths);
+    private static final Pattern URI_PREFIX = Pattern.compile("[A-Za-z][A-Za-z0-9+.-]*:[^\\s\"'<>\\[\\](){} ,]*$");
     private StackTraceParsers() { }
     static List<SourceLocation> frames(String text) {
         List<SourceLocation> result = new ArrayList<>();
@@ -32,14 +33,17 @@ final class StackTraceParsers {
         return location(path, m.group(4));
     }
     private static List<SourceLocation> paths(String line) {
-        if (line.contains("webpack:") || line.contains("node:") || line.contains("http://") || line.contains("https://")) return List.of();
-        boolean fileUrl = line.contains("file:///");
-        List<SourceLocation> result = new ArrayList<>(); var m = PATH.matcher(line.replace("file:///", "/"));
+        List<SourceLocation> result = new ArrayList<>(); var m = PATH.matcher(line);
         while (m.find()) {
             String path = m.group(1).trim();
-            // V8 file URLs are filesystem paths; webpack/node virtual locations have no proven local mapping.
-            int file = path.indexOf("file://"); if (file >= 0) path = path.substring(file + 7);
-            if (path.contains("://") || line.contains("webpack:") || line.contains("node:")) continue;
+            // Inspect this match's URI token; URLs in arguments must not hide a local frame.
+            var uri = URI_PREFIX.matcher(line).region(0, m.start(1));
+            boolean fileUrl = uri.find();
+            if (fileUrl) {
+                if (!uri.group().equalsIgnoreCase("file:") || !path.startsWith("///")) continue;
+                path = path.substring(2);
+            }
+            if (path.contains("://")) continue;
             if (!path.startsWith("/") && !path.startsWith("\\") && !path.matches("[A-Za-z]:.*")) {
                 path = path.replaceFirst("^(?:at|from)\\s+", "");
             }

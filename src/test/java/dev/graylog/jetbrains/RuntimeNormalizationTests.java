@@ -39,6 +39,31 @@ final class RuntimeNormalizationTests {
         var chain = ecs(error);
         eq(List.of("SchemaFault", "ExplicitCause"), chain.stream().map(ExceptionDetails.Part::type).toList(), "explicit causes supersede printed duplicates");
         eq(List.of(10, 70), chain.stream().map(p -> p.origin().line()).toList(), "explicit cause location retained");
+        error.remove("type");
+        eq(List.of("java.lang.RuntimeException", "ExplicitCause"), ecs(error).stream().map(ExceptionDetails.Part::type).toList(), "parsed root type coexists with explicit structured cause");
+        for (boolean dotted : List.of(false, true)) for (String type : List.of("missing", "", "  ", "Exception", "SchemaFault")) {
+            var node = new JsonObject();
+            if (!type.equals("missing")) node.addProperty("type", type);
+            node.addProperty("stack_trace", "TypeError: printed message\n at run (/srv/app/main.js:42:2)");
+            node.addProperty("message", "Schema message");
+            var fields = new JsonObject();
+            if (dotted) node.entrySet().forEach(e -> fields.add("error." + e.getKey(), e.getValue())); else fields.add("error", node);
+            var event = new LogEvent("optional-type", "fixture", fields);
+            var root = ExceptionDetails.chain(event).getFirst();
+            String expected = type.equals("missing") || type.isBlank() ? "TypeError" : type;
+            eq(expected, root.type(), "only explicit type metadata overrides the parsed header: " + type + " dotted=" + dotted);
+            eq("Schema message", root.message(), "message metadata remains authoritative without a type");
+            eq(true, ExceptionDetails.render(ExceptionDetails.chain(event)).startsWith(expected + ":"), "inspector renders the chosen type");
+        }
+        for (String alias : List.of("exception_class", "exception_type", "exceptionClass", "error_type", "error.type")) {
+            var node = new JsonObject(); node.addProperty("stack_trace", "TypeError: failed\n at run (/srv/app/main.js:42:2)");
+            var fields = new JsonObject(); fields.add("error", node); fields.addProperty(alias, "ReportedFault");
+            eq("ReportedFault", ExceptionDetails.chain(new LogEvent("type-alias", "fixture", fields)).getFirst().type(), "existing explicit event type alias: " + alias);
+        }
+        for (String type : List.of("class", "exception_class")) {
+            var node = new JsonObject(); node.addProperty(type, "ReportedFault"); node.addProperty("stack_trace", "TypeError: failed\n at run (/srv/app/main.js:42:2)");
+            eq("ReportedFault", ecs(node).getFirst().type(), "existing structured type alias: " + type);
+        }
         return assertions;
     }
     private static List<ExceptionDetails.Part> ecs(JsonObject error) { var fields = new JsonObject(); fields.add("error", error); return ExceptionDetails.chain(new LogEvent("runtime", "fixture", fields)); }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.4
+
+- Keep filesystem stack locations when the same line contains URL arguments; filter virtual locations per match and decode file URLs individually.
+- Retain types parsed from ECS stacks when type metadata is missing or blank; explicitly reported types, messages, origins and structured causes keep their precedence.
+- Check both fixes across runtime fixtures, editor sites and full-period export/hydration.
+
 ## 0.15.3
 
 - Decode dotted ECS stack data when type metadata is absent or blank, retaining the same frame/cause locations as native error objects.

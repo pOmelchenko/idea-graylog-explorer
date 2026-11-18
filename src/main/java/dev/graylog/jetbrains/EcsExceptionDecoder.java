@@ -13,6 +13,6 @@ final class EcsExceptionDecoder implements ExceptionDecoder {
         }
         var metadata = StructuredExceptionDecoder.decodeObject(object, event);
         String text = object == null ? "" : ExceptionDetails.value(object, "stack_trace", "stacktrace");
-        return TextStackParser.normalize(text, metadata);
+        return TextStackParser.normalize(text, metadata, StructuredExceptionDecoder.rootType(object, event));
     }
 }

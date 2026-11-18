@@ -51,7 +51,7 @@ internal object TextStackParser {
     }
 
     /** Explicit schema metadata wins; structured causes supersede duplicate printed causes. */
-    @JvmStatic fun normalize(text: String, metadata: List<ExceptionDetails.Part>): List<ExceptionDetails.Part> {
+    @JvmStatic fun normalize(text: String, metadata: List<ExceptionDetails.Part>, explicitType: String): List<ExceptionDetails.Part> {
         if (metadata.isEmpty() || text.isBlank()) return metadata
         val root = metadata.first()
         val parsed = parse(text, root.type(), root.message())
@@ -60,7 +60,7 @@ internal object TextStackParser {
         val origin = root.origin() ?: first.origin()
         val frames = first.frames().ifEmpty { root.frames() }
         val trace = if (origin == null) frames else frames.filter { it != origin }
-        val result = mutableListOf(ExceptionDetails.Part(root.type(), root.message().ifBlank { first.message() }, root.code(), origin, trace))
+        val result = mutableListOf(ExceptionDetails.Part(explicitType.ifBlank { first.type() }, root.message().ifBlank { first.message() }, root.code(), origin, trace))
         result.addAll((if (metadata.size > 1) metadata else parsed).drop(1).take(63))
         return java.util.List.copyOf(result)
     }

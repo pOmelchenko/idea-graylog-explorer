@@ -13,8 +13,7 @@ final class StructuredExceptionDecoder implements ExceptionDecoder {
         List<ExceptionDetails.Part> chain = new ArrayList<>();
         // Serialized data cannot have reference cycles; cap unusually deep payloads as well.
         for (int depth = 0; object != null && depth < 64; depth++) {
-            String type = ExceptionDetails.value(object, "class", "type", "exception_class");
-            if (type.isBlank() && depth == 0) type = event.first("exception_class", "exception_type", "exceptionClass", "error_type", "error.type");
+            String type = depth == 0 ? rootType(object, event) : ExceptionDetails.value(object, "class", "type", "exception_class");
             if (type.isBlank()) type = "Exception";
             String message = ExceptionDetails.value(object, "message"), code = ExceptionDetails.value(object, "code");
             SourceLocation origin = ExceptionDetails.location(object);
@@ -25,5 +24,9 @@ final class StructuredExceptionDecoder implements ExceptionDecoder {
         }
         return List.copyOf(chain);
     }
-
+    static String rootType(JsonObject object, LogEvent event) {
+        if (object == null) return "";
+        String type = ExceptionDetails.value(object, "class", "type", "exception_class");
+        return type.isBlank() ? event.first("exception_class", "exception_type", "exceptionClass", "error_type", "error.type") : type;
+    }
 }
