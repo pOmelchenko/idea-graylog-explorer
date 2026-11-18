@@ -18,6 +18,10 @@ final class PortableExportTests {
             String name = fixture.getAsJsonObject().get("name").getAsString();
             JsonObject fields = base(); fields.addProperty("stack_trace", Files.readString(Path.of("src/test/resources/stacks/" + name + ".txt")));
             transport(fields, 0, name);
+            JsonObject ecs = new JsonObject(); ecs.addProperty("type", fixture.getAsJsonObject().getAsJsonArray("types").get(0).getAsString());
+            ecs.addProperty("message", "Schema message"); ecs.addProperty("stack_trace", fields.get("stack_trace").getAsString());
+            JsonObject objectFields = base(); objectFields.add("error", ecs); transport(objectFields, 1, name + " ECS object");
+            JsonObject dottedFields = base(); ecs.entrySet().forEach(e -> dottedFields.add("error." + e.getKey(), e.getValue())); transport(dottedFields, 0, name + " ECS dotted");
         }
         JsonObject error = new JsonObject(); error.addProperty("type", "TypeError"); error.addProperty("message", "bad value");
         error.addProperty("stack_trace", "at run (/srv/app/main.js:42:2)");

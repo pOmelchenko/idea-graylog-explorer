@@ -39,6 +39,7 @@ public final class CoreTests {
         assertions += CredentialUpdateTests.run();
         assertions += PortableStackTests.run();
         assertions += TextTraceReviewTests.run();
+        assertions += RuntimeNormalizationTests.run();
         assertions += PortableExportTests.run();
         assertions += OperationPolicyTests.run();
         assertions += ConnectionUpdatesTests.run();

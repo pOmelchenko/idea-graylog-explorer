@@ -40,6 +40,18 @@
     ]
   },
   {
+    "name": "jvm-uncaught",
+    "frames": [{"path": "app/Outer.java", "line": 10}, {"path": "app/Inner.java", "line": 20}],
+    "types": ["java.lang.RuntimeException", "java.lang.IllegalArgumentException"],
+    "origins": [10, 20]
+  },
+  {
+    "name": "python-single",
+    "frames": [{"path": "/srv/app/main.py", "line": 12}, {"path": "/srv/app/user.py", "line": 43}],
+    "types": ["ValueError"],
+    "origins": [43]
+  },
+  {
     "name": "kotlin",
     "frames": [
       {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.2
+
+- Recognize JVM uncaught-exception headers, including custom throwable names, before assigning frames to causes.
+- Share one Kotlin runtime-text parser between top-level stacks and ECS objects/dotted fields; preserve ECS metadata while normalizing Python ordering and nested causes.
+- Separate structural header recognition from frame regexes. Check the runtime fixture corpus across text/ECS/export paths and keep unknown parent frames out of a recognized cause.
+
 ## 0.15.1
 
 - Preserve explicit exception file/line metadata when a text stack starts at a caller; keep caller frames and the original exception text.
