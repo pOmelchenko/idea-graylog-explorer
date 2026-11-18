@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.2
+
+- Carry PR #3 review fixes into the Kotlin decoder: preserve explicit throw origins and correctly unwind .NET inner stacks, with the same parser/editor/export regression fixtures.
+
 ## 0.16.1
 
 - Resize the event message above the inspector tabs with a native divider and remember the chosen height, making long SQL and multiline log messages readable.
@@ -9,6 +13,12 @@
 - Join adjacent visible events from the same source into continuous color segments, retaining rounded ends and the splitter inset. Respect sorting, filtering, selection and source-color overrides; never merge distinct sources merely because their colors match.
 - Move exception parsers/models, Explorer views, connection transactions, editor decorations/PHP hints and the panel to Kotlin. Keep persistent XML beans, credential keys, extension IDs and Java callers compatible.
 - Add adjacency/raster contracts and actual IDE table-renderer checks for source segments, including sorted and filtered view order.
+
+## 0.15.1
+
+- Preserve explicit exception file/line metadata when a text stack starts at a caller; keep caller frames and the original exception text.
+- Restore .NET parent frames after inner-exception boundaries, including nested causes with inline headers.
+- Cover every cause's editor location and full-period export with shared runtime fixtures and explicit-origin regressions.
 
 ## 0.15.0
 

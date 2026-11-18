@@ -160,6 +160,29 @@
     ]
   },
   {
+    "name": "dotnet-inner",
+    "frames": [
+      {"path": "C:\\app\\Validator.cs", "line": 12},
+      {"path": "C:\\app\\Service.cs", "line": 34},
+      {"path": "C:\\app\\Service.cs", "line": 42},
+      {"path": "C:\\app\\Program.cs", "line": 8}
+    ],
+    "types": ["System.InvalidOperationException", "System.ArgumentException"],
+    "origins": [42, 12]
+  },
+  {
+    "name": "dotnet-nested",
+    "frames": [
+      {"path": "C:\\app\\Format.cs", "line": 11},
+      {"path": "C:\\app\\Parser.cs", "line": 20},
+      {"path": "C:\\app\\Adapter.cs", "line": 30},
+      {"path": "C:\\app\\Service.cs", "line": 42},
+      {"path": "C:\\app\\Program.cs", "line": 8}
+    ],
+    "types": ["System.InvalidOperationException", "System.ApplicationException", "System.FormatException"],
+    "origins": [42, 30, 11]
+  },
+  {
     "name": "rust",
     "frames": [
       {

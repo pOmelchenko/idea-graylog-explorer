@@ -1,0 +1,8 @@
+System.InvalidOperationException: outer ---> System.ApplicationException: middle ---> System.FormatException: inner
+   at App.Parser.Parse() in C:\app\Format.cs:line 11
+   at App.Parser.Read() in C:\app\Parser.cs:line 20
+   --- End of inner exception stack trace ---
+   at App.Adapter.Convert() in C:\app\Adapter.cs:line 30
+   --- End of inner exception stack trace ---
+   at App.Service.Run() in C:\app\Service.cs:line 42
+   at App.Program.Main() in C:\app\Program.cs:line 8

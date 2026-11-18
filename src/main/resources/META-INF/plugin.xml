@@ -29,12 +29,19 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.16.2</b></p>
+      <ul><li>Preserve explicit exception origins and keep .NET outer/inner frames attached to their own causes after the Kotlin migration.</li></ul>
       <p><b>0.16.1</b></p>
       <ul><li>Resize long log messages above the inspector tabs with a native divider and remember the layout.</li></ul>
       <p><b>0.16.0</b></p>
       <ul>
         <li>Join adjacent visible log rows from the same source into continuous color segments, preserving selection, sorting, filtering and source identity.</li>
         <li>Migrate exception parsers/models, Explorer views, connection transactions, editor hints and the panel to Kotlin; preserve stored settings and Java interoperability.</li>
+      </ul>
+      <p><b>0.15.1</b></p>
+      <ul>
+        <li>Preserve explicit exception origins alongside caller-only text stacks.</li>
+        <li>Keep .NET outer and nested inner exception frames attached to their own causes.</li>
       </ul>
       <p><b>0.15.0</b></p>
       <ul>
