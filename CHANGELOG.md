@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.4
+
+- Decode dotted ECS stacks without error.type through the Kotlin adapter; inherit all missing-type runtime/export regressions.
+
 ## 0.16.3
 
 - Reuse the shared Kotlin text parser for JVM uncaught headers and ECS runtime ordering; retain UI migration, source bands and message resizing.
@@ -17,6 +21,11 @@
 - Join adjacent visible events from the same source into continuous color segments, retaining rounded ends and the splitter inset. Respect sorting, filtering, selection and source-color overrides; never merge distinct sources merely because their colors match.
 - Move exception parsers/models, Explorer views, connection transactions, editor decorations/PHP hints and the panel to Kotlin. Keep persistent XML beans, credential keys, extension IDs and Java callers compatible.
 - Add adjacency/raster contracts and actual IDE table-renderer checks for source segments, including sorted and filtered view order.
+
+## 0.15.3
+
+- Decode dotted ECS stack data when type metadata is absent or blank, retaining the same frame/cause locations as native error objects.
+- Check every runtime fixture without error.type through native/dotted decoding and full-period export/hydration; keep message-only and blank-stack records outside this fallback.
 
 ## 0.15.2
 
