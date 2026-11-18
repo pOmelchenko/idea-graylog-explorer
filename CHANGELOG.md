@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.3
+
+- Reuse the shared Kotlin text parser for JVM uncaught headers and ECS runtime ordering; retain UI migration, source bands and message resizing.
+
 ## 0.16.2
 
 - Carry PR #3 review fixes into the Kotlin decoder: preserve explicit throw origins and correctly unwind .NET inner stacks, with the same parser/editor/export regression fixtures.
@@ -13,6 +17,12 @@
 - Join adjacent visible events from the same source into continuous color segments, retaining rounded ends and the splitter inset. Respect sorting, filtering, selection and source-color overrides; never merge distinct sources merely because their colors match.
 - Move exception parsers/models, Explorer views, connection transactions, editor decorations/PHP hints and the panel to Kotlin. Keep persistent XML beans, credential keys, extension IDs and Java callers compatible.
 - Add adjacency/raster contracts and actual IDE table-renderer checks for source segments, including sorted and filtered view order.
+
+## 0.15.2
+
+- Recognize JVM uncaught-exception headers, including custom throwable names, before assigning frames to causes.
+- Share one Kotlin runtime-text parser between top-level stacks and ECS objects/dotted fields; preserve ECS metadata while normalizing Python ordering and nested causes.
+- Separate structural header recognition from frame regexes. Check the runtime fixture corpus across text/ECS/export paths and keep unknown parent frames out of a recognized cause.
 
 ## 0.15.1
 

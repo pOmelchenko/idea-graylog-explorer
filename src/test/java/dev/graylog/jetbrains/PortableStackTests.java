@@ -29,6 +29,18 @@ final class PortableStackTests {
             check(sites.stream().allMatch(s -> s.location().file().startsWith("/local")), name + " confined to root");
             eq(1L, sites.getFirst().count(), name + " count");
             for (var part : chain) check(sites.stream().anyMatch(s -> s.location().line() == part.origin().line() && s.types().contains(part.type())), name + " editor site for " + part.type());
+            for (boolean dotted : List.of(false, true)) {
+                JsonObject error = new JsonObject(); error.addProperty("type", chain.getFirst().type());
+                error.addProperty("message", "Schema message"); error.addProperty("stack_trace", text);
+                JsonObject wrapped = new JsonObject(); wrapped.addProperty("level", 3);
+                if (dotted) error.entrySet().forEach(e -> wrapped.add("error." + e.getKey(), e.getValue())); else wrapped.add("error", error);
+                var ecsEvent = new LogEvent(name, "fixture", wrapped); var ecsChain = ExceptionDetails.chain(ecsEvent);
+                eq(chain.stream().map(ExceptionDetails.Part::type).toList(), ecsChain.stream().map(ExceptionDetails.Part::type).toList(), name + " ECS types");
+                eq(chain.stream().map(ExceptionDetails.Part::frames).toList(), ecsChain.stream().map(ExceptionDetails.Part::frames).toList(), name + " ECS frame order/ownership");
+                eq("Schema message", ecsChain.getFirst().message(), name + " ECS metadata retained");
+                eq(text, ecsEvent.text("error.stack_trace"), name + " original ECS text retained in document");
+                eq(sites.stream().map(ExceptionSites.Site::location).toList(), CoreTests.sites(List.of(ecsEvent), connection, Path.of("/local")).stream().map(ExceptionSites.Site::location).toList(), name + " ECS source parity");
+            }
             if (name.equals("dotnet-inner")) {
                 eq(List.of(8), chain.getFirst().trace().stream().map(SourceLocation::line).toList(), "outer frames resume after boundary");
                 eq(List.of(34), chain.get(1).trace().stream().map(SourceLocation::line).toList(), "inner frames stop at boundary");
