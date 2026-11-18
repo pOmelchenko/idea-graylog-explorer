@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.0
+
+- Join adjacent visible events from the same source into continuous color segments, retaining rounded ends and the splitter inset. Respect sorting, filtering, selection and source-color overrides; never merge distinct sources merely because their colors match.
+- Move exception parsers/models, Explorer views, connection transactions, editor decorations/PHP hints and the panel to Kotlin. Keep persistent XML beans, credential keys, extension IDs and Java callers compatible.
+- Add adjacency/raster contracts and actual IDE table-renderer checks for source segments, including sorted and filtered view order.
+
 ## 0.15.0
 
 - Parse JVM, Python, V8 JavaScript/TypeScript, Go, Ruby, .NET and Rust text stack frames, alongside PHP; retain raw text and normalize exception causes.

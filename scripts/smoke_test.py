@@ -32,6 +32,7 @@ def main():
     parser.add_argument("--ide-home")
     parser.add_argument("--theme", choices=["light", "dark"], default="dark")
     parser.add_argument("--values-only", action="store_true")
+    parser.add_argument("--bands-only", action="store_true", help="Check native table renderer segments and capture a synthetic table only")
     parser.add_argument("--sources-only", action="store_true")
     parser.add_argument("--with-legacy-prototype", action="store_true", help="Keep a disabled prototype installed to check migration conflicts")
     parser.add_argument("--reload", action="store_true", help="Exercise dynamic unload/update from a separate controller plugin")
@@ -170,10 +171,10 @@ def main():
         # Must be configured before any bundled plugin initializes Password Safe.
         (config / "security.xml").write_text('<application><component name="PasswordSafe"><option name="PROVIDER" value="MEMORY_ONLY"/></component></application>')
         options = workspace / "smoke.vmoptions"
-        options.write_text("\n".join(["-Xmx1024m" if args.reload else "-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.reload.plugin={workspace / 'plugins/graylog-jetbrains'}", f"-Dgraylog.reload.upgrade={workspace / 'upgrade/graylog-jetbrains'}", f"-Dgraylog.smoke.legacyInstalled={str(args.with_legacy_prototype).lower()}", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
+        options.write_text("\n".join(["-Xmx1024m" if args.reload else "-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.smoke.bandsOnly={str(args.bands_only).lower()}", f"-Dgraylog.reload.plugin={workspace / 'plugins/graylog-jetbrains'}", f"-Dgraylog.reload.upgrade={workspace / 'upgrade/graylog-jetbrains'}", f"-Dgraylog.smoke.legacyInstalled={str(args.with_legacy_prototype).lower()}", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
                                     f"-Dgraylog.smoke.report={report}", f"-Dgraylog.smoke.theme={args.theme}", "-Didea.initially.ask.config=false",
                                     "-Didea.trust.all.projects=true", "-Dide.show.tips.on.startup.default.value=false",
-                                    "-Djb.consents.confirmation.enabled=false", "-Dawt.toolkit.name=XToolkit", "-Dsplash=false", *preference_option]) + "\n")
+                                    "-Djb.consents.confirmation.enabled=false", "-Dawt.toolkit.name=XToolkit", "-Dsplash=false", *(["-XX:SoftRefLRUPolicyMSPerMB=0"] if args.reload else []), *preference_option]) + "\n")
         import json
         info = json.loads((ide / "product-info.json").read_text())
         prefix = "PHPSTORM" if info.get("productCode") == "PS" else "IDEA"
@@ -217,6 +218,9 @@ def main():
                         return 1
                     if args.reload:
                         print(f"Reload report: {report / 'reload-steps.txt'}", flush=True)
+                        return 0
+                    if args.bands_only:
+                        print(f"Source segments: {report / 'source-bands.png'}", flush=True)
                         return 0
                     print(f"Screenshot: {report / 'ide-smoke.png'}", flush=True)
                     print(f"Yii trace: {report / 'yii-stack-trace.png'}", flush=True)

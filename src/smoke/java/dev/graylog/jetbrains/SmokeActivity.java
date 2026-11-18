@@ -72,6 +72,11 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
             laf.setAutodetect(false);
             laf.setCurrentUIThemeLookAndFeel(System.getProperty("graylog.smoke.theme", "dark").equals("light") ? laf.getDefaultLightLaf() : laf.getDefaultDarkLaf());
             laf.updateUI(); Files.writeString(report.resolve("theme.txt"), laf.getCurrentUIThemeLookAndFeel().getName());
+            if (Boolean.getBoolean("graylog.smoke.bandsOnly")) {
+                SourceBandsSmoke.run(report);
+                Files.writeString(report.resolve("result.txt"), "PASS: Native table source-segment renderer and raster checks completed. Full Explorer, PHP hints and reload were not exercised by this mode.\n");
+                return;
+            }
             JFrame frame = WindowManager.getInstance().getFrame(project);
             if (frame != null) { frame.setBounds(0, 0, 1780, 1060); frame.toFront(); }
             ToolWindow window = ToolWindowManager.getInstance(project).getToolWindow("Graylog");

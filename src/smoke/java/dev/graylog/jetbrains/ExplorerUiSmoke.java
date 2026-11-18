@@ -31,6 +31,7 @@ final class ExplorerUiSmoke {
             later(report, 250, () -> {
                 if (SmokeUi.loadedRequest(panel) != request || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Source color change restarted the search or index");
                 if (!GraylogIdeSettings.get().getState().options.sourceColors.get(source).equals("#C05090")) throw new AssertionError("Source color override not saved");
+                SourceBandsSmoke.run(report);
                 checkStripe(table, 0, Color.decode("#C05090"));
                 table.clearSelection(); checkStripe(table, 0, Color.decode("#C05090")); table.setRowSelectionInterval(0, 0);
                 table.getColumnModel().moveColumn(2, 0); checkStripe(table, 0, Color.decode("#C05090"));

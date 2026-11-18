@@ -14,7 +14,7 @@ Independent project by Pavel Omelchenko. Not affiliated with Graylog or JetBrain
 - Browse connections, streams and saved searches in a native IDE tool window.
 - Search with field suggestions, absolute search windows, pagination and optional live polling.
 - Select multiple sources in the connection tree or a searchable, sortable popup. Source counts cover the query and period, including events outside the loaded page.
-- Identify sources with consistent colors; move and resize the Sources popup and retain its size.
+- Identify sources with consistent colors and continuous segments for adjacent events from the same source; move and resize the Sources popup and retain its size.
 - Inspect fields, JSON, readable exception chains and mapped stack frames in separate tabs.
 - Open the selected event in the Graylog web interface, show nearby events and follow request IDs.
 - Build an exception index across the selected period, independently of table pagination. Gutter markers retain full counts and bounded examples.
@@ -26,6 +26,8 @@ Independent project by Pavel Omelchenko. Not affiliated with Graylog or JetBrain
 Source filtering in a synthetic demo project:
 
 ![Source colors, counts, tree and sortable popup](docs/images/sources-light.png)
+
+![Continuous segments for adjacent events from the same source](docs/images/source-bands-light.png)
 
 A historical value beside a PHP exception argument:
 
@@ -55,7 +57,7 @@ If you installed the earlier local prototype with ID `dev.graylog.jetbrains`, di
 
 The plugin uses dynamic extension points and supports installation, updates and removal without a mandatory IDE restart. IntelliJ controls the unload: if it cannot unload a plugin safely, it can still request a restart. The earlier prototype must be disabled or removed before using the public plugin.
 
-An isolated regression test updates an unmodified production JAR in the same IDE process, then unloads and reloads it again. It checks the open Explorer, Live, source popup, exception markers, inline hints, actions and saved query. The classloader leak assertion clears platform icon caches first, since those caches can retain icons beyond a successful unload.
+An isolated regression test updates an unmodified production JAR in the same IDE process, then unloads and reloads it again. It checks the open Explorer, Live, source popup, exception markers, inline hints, actions and saved query. The classloader leak assertion clears platform icon caches and uses `-XX:SoftRefLRUPolicyMSPerMB=0` only in the isolated reload JVM. This reclaims soft MethodHandle caches; plugin-owned strong references still fail the assertion.
 
 ## Connect
 
@@ -135,7 +137,7 @@ Smoke tests launch a separate IDE with a generated project, a loopback-only fake
 
 ## Architecture
 
-The Explorer coordinates three views: connections, events and event details. Kotlin controllers own submitted search/page/example state, source aggregation/cache and the full-period index. They depend on `GraylogApi` and `TaskRunner` ports; the HTTP client and IntelliJ threading adapter implement those ports. Operations capture deeply immutable effective configuration. Typed IDE/project Settings changes invalidate only affected work. Editor decorations are indexed by file and updated by location, preserving unchanged markers. Both Settings pages use Kotlin UI DSL bindings over detached drafts, while persistent settings beans retain their storage format. Project Apply preserves workspace history.
+Exception decoders, Explorer views, connection transactions, editor decorations and the panel use Kotlin. Persistent XML beans retain their Java storage contracts. The Explorer coordinates three views: connections, events and event details. Kotlin controllers own submitted search/page/example state, source aggregation/cache and the full-period index. They depend on `GraylogApi` and `TaskRunner` ports; the HTTP client and IntelliJ threading adapter implement those ports. Operations capture deeply immutable effective configuration. Typed IDE/project Settings changes invalidate only affected work. Editor decorations are indexed by file and updated by location, preserving unchanged markers. Both Settings pages use Kotlin UI DSL bindings over detached drafts, while persistent settings beans retain their storage format. Project Apply preserves workspace history.
 
 See [the review and refactoring report](docs/review-2026-11-17.md) for findings, boundaries, retained compatibility code and the 0.14 follow-up.
 

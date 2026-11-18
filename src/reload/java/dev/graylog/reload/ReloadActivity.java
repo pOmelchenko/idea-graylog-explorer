@@ -131,12 +131,13 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
         try {
             // Platform disabled-icon caches retain CachedImageIcon keys beyond successful unload.
             // Flush platform caches before looking for plugin-owned strong-reference leaks.
+            // The isolated reload JVM also eagerly reclaims soft MethodHandle caches; strong leaks still fail.
             com.intellij.openapi.util.IconLoader.clearCache();
             for (int attempt = 0; attempt < 20 && previousLoader.get() != null; attempt++) {
                 System.gc(); Thread.sleep(250);
             }
             check(previousLoader.get() == null, "Old plugin classloader collected after platform cache cleanup");
-            step("Cycle " + cycle + ": old classloader collected after platform icon cache cleanup");
+            step("Cycle " + cycle + ": old classloader collected after platform icon cache cleanup and test-only eager soft-reference reclamation");
             later(this::continueAfterLoad);
         } catch (Throwable error) { fail(error); }
     }
@@ -173,7 +174,7 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
                 try {
                     check(QUERY.equals(((JTextField) component(panel(), "explorer.query")).getText()), "Query retained after update and reload");
                     check(ActionManager.getInstance().getAction("Graylog.SearchSelection") != null, "Reloaded action registered once");
-                    Files.writeString(report.resolve("result.txt"), "PASS: Production plugin updated and reloaded in the same JVM; both old classloaders collected after platform icon cache cleanup. Open Explorer, Live, source popup, index, PHP hints, actions and saved query checked.\n");
+                    Files.writeString(report.resolve("result.txt"), "PASS: Production plugin updated and reloaded in the same JVM; both old classloaders collected after platform icon cache cleanup and test-only eager soft-reference reclamation. Open Explorer, Live, source popup, index, PHP hints, actions and saved query checked.\n");
                 } catch (Throwable error) { fail(error); }
             });
         } catch (Throwable error) { fail(error); }

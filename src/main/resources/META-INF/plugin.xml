@@ -29,6 +29,11 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.16.0</b></p>
+      <ul>
+        <li>Join adjacent visible log rows from the same source into continuous color segments, preserving selection, sorting, filtering and source identity.</li>
+        <li>Migrate exception parsers/models, Explorer views, connection transactions, editor hints and the panel to Kotlin; preserve stored settings and Java interoperability.</li>
+      </ul>
       <p><b>0.15.0</b></p>
       <ul>
         <li>Parse JVM, Python, JavaScript/TypeScript, Go, Ruby, .NET and Rust stack frames alongside PHP; preserve original exception text.</li>
