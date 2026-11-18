@@ -29,6 +29,8 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.16.5</b></p>
+      <ul><li>Keep local frames beside URL arguments and recover ECS exception types from stack headers when type metadata is absent.</li></ul>
       <p><b>0.16.4</b></p>
       <ul><li>Decode dotted ECS stack data when error.type is absent or blank.</li></ul>
       <p><b>0.16.3</b></p>
@@ -42,6 +44,8 @@
         <li>Join adjacent visible log rows from the same source into continuous color segments, preserving selection, sorting, filtering and source identity.</li>
         <li>Migrate exception parsers/models, Explorer views, connection transactions, editor hints and the panel to Kotlin; preserve stored settings and Java interoperability.</li>
       </ul>
+      <p><b>0.15.4</b></p>
+      <ul><li>Keep local frames beside URL arguments and recover ECS exception types from stack headers when type metadata is absent.</li></ul>
       <p><b>0.15.3</b></p>
       <ul><li>Retain exception locations from dotted ECS stacks even when error.type is absent.</li></ul>
       <p><b>0.15.2</b></p>
