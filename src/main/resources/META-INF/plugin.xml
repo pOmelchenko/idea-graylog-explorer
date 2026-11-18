@@ -29,12 +29,16 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.17.1</b></p>
+      <ul><li>Use the shared runtime parser for JVM uncaught headers and ECS frame ordering.</li></ul>
       <p><b>0.17.0</b></p>
       <ul>
         <li>Navigate to reported logger coordinates or choose PHP category-based logger candidates, separately from exception origins.</li>
         <li>Adapt source-field mappings and local lookup behavior to existing consumer log formats, including ECS/OpenTelemetry and custom PHP loggers.</li>
         <li>Show event-specific Logging guidance with a synthetic logging-fields example and native project text search.</li>
       </ul>
+      <p><b>0.16.3</b></p>
+      <ul><li>Use the shared runtime parser for JVM uncaught headers and ECS frame ordering.</li></ul>
       <p><b>0.16.2</b></p>
       <ul><li>Preserve explicit exception origins and keep .NET outer/inner frames attached to their own causes after the Kotlin migration.</li></ul>
       <p><b>0.16.1</b></p>
@@ -43,6 +47,11 @@
       <ul>
         <li>Join adjacent visible log rows from the same source into continuous color segments, preserving selection, sorting, filtering and source identity.</li>
         <li>Migrate exception parsers/models, Explorer views, connection transactions, editor hints and the panel to Kotlin; preserve stored settings and Java interoperability.</li>
+      </ul>
+      <p><b>0.15.2</b></p>
+      <ul>
+        <li>Keep JVM uncaught exceptions and their causes at their own source locations.</li>
+        <li>Normalize ECS runtime text through the shared Kotlin parser, including Python frame ordering.</li>
       </ul>
       <p><b>0.15.1</b></p>
       <ul>
