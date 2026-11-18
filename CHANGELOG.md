@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.1
+
+- Resize the event message above the inspector tabs with a native divider and remember the chosen height, making long SQL and multiline log messages readable.
+
 ## 0.16.0
 
 - Join adjacent visible events from the same source into continuous color segments, retaining rounded ends and the splitter inset. Respect sorting, filtering, selection and source-color overrides; never merge distinct sources merely because their colors match.

@@ -14,6 +14,7 @@ Independent project by Pavel Omelchenko. Not affiliated with Graylog or JetBrain
 - Browse connections, streams and saved searches in a native IDE tool window.
 - Search with field suggestions, absolute search windows, pagination and optional live polling.
 - Select multiple sources in the connection tree or a searchable, sortable popup. Source counts cover the query and period, including events outside the loaded page.
+- Read and copy long SQL or multiline messages in a vertically resizable inspector with a remembered layout.
 - Identify sources with consistent colors and continuous segments for adjacent events from the same source; move and resize the Sources popup and retain its size.
 - Inspect fields, JSON, readable exception chains and mapped stack frames in separate tabs.
 - Open the selected event in the Graylog web interface, show nearby events and follow request IDs.

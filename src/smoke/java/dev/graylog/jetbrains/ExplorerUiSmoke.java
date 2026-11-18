@@ -13,6 +13,9 @@ import java.util.List;
 /** Exercises the reported focus, completion, mapping and source-color regressions. */
 final class ExplorerUiSmoke {
     static void run(Project project, GraylogPanel panel, Path report, Runnable done) {
+        MessageInspectorSmoke.run(project, panel, report, () -> runDetails(project, panel, report, done));
+    }
+    private static void runDetails(Project project, GraylogPanel panel, Path report, Runnable done) {
         try {
             Object request = SmokeUi.loadedRequest(panel), index = SmokeUi.index(panel).getResult();
             GraylogIdeConfigurable settings = new GraylogIdeConfigurable(); settings.createComponent(); settings.reset();

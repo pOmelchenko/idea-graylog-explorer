@@ -9,6 +9,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
+import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBList
@@ -75,6 +76,7 @@ class EventInspector(
         this.onAround = onAround
         this.onFollow = onFollow
         com.intellij.openapi.util.Disposer.register(parent, this)
+        message.name = "inspector.message"
         rawStack.setName("inspector.rawStack")
         sourceMapping.setName("inspector.sourceMapping")
         open.setName("inspector.open")
@@ -111,12 +113,12 @@ class EventInspector(
     private fun createInspector(): JComponent {
         val panel = JPanel(BorderLayout())
         val details = JPanel(BorderLayout())
-        val heading = JPanel(BorderLayout())
-        message.setRows(2)
+        val messagePane = ExplorerUi.scroll(message).apply {
+            name = "inspector.messagePane"
+            minimumSize = JBUI.size(0, 48)
+        }
         message.setFont(UIUtil.getLabelFont())
         message.setBorder(JBUI.Borders.empty(2, 8, 8, 8))
-        heading.add(ExplorerUi.scroll(message), BorderLayout.CENTER)
-        details.add(heading, BorderLayout.NORTH)
         inspectorTabs = JBTabsFactory.createTabs(project, this)
         inspectorTabs.getComponent().setBorder(JBUI.Borders.empty())
         val fields = JBTable(fieldsModel)
@@ -191,7 +193,14 @@ class EventInspector(
         inspectorTabs.addTab(TabInfo(trace).setText("Stack trace"))
         inspectorTabs.addTab(TabInfo(ExplorerUi.scroll(rawJson)).setText("JSON"))
         inspectorTabs.addTab(TabInfo(ExplorerUi.scroll(rawStack)).setText("Exception text"))
-        details.add(inspectorTabs.getComponent(), BorderLayout.CENTER)
+        val split = OnePixelSplitter(true, "graylog.explorer.inspector.message.proportion", 0.28f).apply {
+            name = "inspector.messageSplitter"
+            setHonorComponentsMinimumSize(true)
+            firstComponent = messagePane
+            secondComponent = inspectorTabs.component.apply { minimumSize = JBUI.size(0, 96) }
+        }
+        com.intellij.openapi.util.Disposer.register(this, Disposable { split.dispose() })
+        details.add(split, BorderLayout.CENTER)
         val empty = JLabel("Select a log event to view details", JLabel.CENTER)
         empty.setForeground(UIUtil.getContextHelpForeground())
         inspectorBody.add(empty, "empty")
