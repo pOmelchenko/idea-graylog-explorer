@@ -36,11 +36,12 @@ final class PortableStackTests {
                 JsonObject wrapped = new JsonObject(); wrapped.addProperty("level", 3);
                 if (dotted) error.entrySet().forEach(e -> wrapped.add("error." + e.getKey(), e.getValue())); else wrapped.add("error", error);
                 var ecsEvent = new LogEvent(name, "fixture", wrapped); var ecsChain = ExceptionDetails.chain(ecsEvent);
-                if (typed) eq(chain.stream().map(ExceptionDetails.Part::type).toList(), ecsChain.stream().map(ExceptionDetails.Part::type).toList(), name + shape + " types");
+                eq(chain.stream().map(ExceptionDetails.Part::type).toList(), ecsChain.stream().map(ExceptionDetails.Part::type).toList(), name + shape + " types");
                 eq(chain.stream().map(ExceptionDetails.Part::frames).toList(), ecsChain.stream().map(ExceptionDetails.Part::frames).toList(), name + shape + " frame order/ownership");
                 eq("Schema message", ecsChain.getFirst().message(), name + shape + " metadata retained");
                 eq(text, ecsEvent.text("error.stack_trace"), name + shape + " original text retained in document");
                 eq(sites.stream().map(ExceptionSites.Site::location).toList(), CoreTests.sites(List.of(ecsEvent), connection, Path.of("/local")).stream().map(ExceptionSites.Site::location).toList(), name + shape + " source parity");
+                eq(sites.stream().map(ExceptionSites.Site::types).toList(), CoreTests.sites(List.of(ecsEvent), connection, Path.of("/local")).stream().map(ExceptionSites.Site::types).toList(), name + shape + " editor type parity");
             }
             if (name.equals("dotnet-inner")) {
                 eq(List.of(8), chain.getFirst().trace().stream().map(SourceLocation::line).toList(), "outer frames resume after boundary");
@@ -58,6 +59,13 @@ final class PortableStackTests {
                 "at run (webpack:///src/main.ts:42:2)", "at run (https://example.org/main.js:42:2)", "at node:internal/foo.js:12:3"))
             eq(List.of(), SourceLocation.parseFrames(text), "unresolvable frame: " + text);
         eq(List.of(new SourceLocation("/app/my file.tsx", 12)), SourceLocation.parseFrames("at run (file:///app/my%20file.tsx:12:2)"), "file URL");
+        for (String argument : List.of("https://example.org/api", "http://example.org/main.js:99:2", "webpack:///src/main.ts:99:2", "node:internal/foo.js:99:2")) {
+            eq(List.of(new SourceLocation("/srv/app/Fetch.php", 20)), SourceLocation.parseFrames("#0 /srv/app/Fetch.php(20): fetch('" + argument + "')"), "URL argument does not hide a filesystem frame: " + argument);
+        }
+        eq(List.of(new SourceLocation("C:\\app\\Fetch.php", 20)), SourceLocation.parseFrames("#0 C:\\app\\Fetch.php(20): fetch('https://example.org/api')"), "Windows frame with URL argument");
+        eq(List.of(new SourceLocation("/srv/app/Caller.php", 30)), SourceLocation.parseFrames("https://example.org/main.js:99:2,/srv/app/Caller.php:30"), "skip only the virtual match on a mixed line");
+        eq(List.of(new SourceLocation("/app/my file.tsx", 12), new SourceLocation("/app/literal%20name.php", 30)), SourceLocation.parseFrames("at run (file:///app/my%20file.tsx:12:2), /app/literal%20name.php:30"), "decode only the file URL match");
+        eq(List.of(new SourceLocation("C:/app/my file.ts", 12)), SourceLocation.parseFrames("at run (file:///C:/app/my%20file.ts:12:2)"), "Windows file URL");
         eq(List.of(new SourceLocation("app/Service.java", 42)), SourceLocation.parseFrames("at app//app.Service.run(Service.java:42)"), "JVM classloader prefix");
         var iteration = new JsonObject(); iteration.addProperty("stack_trace", "Traceback (most recent call last):\n  File \"/app/main.py\", line 2, in run\n  File \"/app/iterator.py\", line 9, in next\nStopIteration");
         var part = ExceptionDetails.chain(new LogEvent("iteration", "", iteration)).getFirst();
@@ -73,6 +81,7 @@ final class PortableStackTests {
             flat.addProperty("error.message", "Frame-only stack"); flat.addProperty("error.stack_trace", "at run (/srv/app/main.js:42:2)");
             var untyped = ExceptionDetails.chain(new LogEvent("untyped", "fixture", flat));
             eq(1, untyped.size(), "ECS frame-only stack needs no type metadata");
+            eq("Exception", untyped.getFirst().type(), "frame-only stack retains the generic fallback");
             eq(new SourceLocation("/srv/app/main.js", 42), untyped.getFirst().origin(), "untyped ECS frame origin");
         }
         var messageOnly = new JsonObject(); messageOnly.addProperty("error.message", "Ordinary message");

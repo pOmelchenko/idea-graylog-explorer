@@ -33,6 +33,8 @@ final class PortableExportTests {
         JsonObject explicit = base(); explicit.addProperty("exception_class", "RuntimeException");
         explicit.addProperty("exception_file", "/srv/app/Throw.php"); explicit.addProperty("exception_line", 10);
         explicit.addProperty("stack_trace", "#0 /srv/app/Caller.php(20): run()"); transport(explicit, 0, "explicit origin");
+        JsonObject urlArgument = base(); urlArgument.addProperty("exception_class", "RuntimeException");
+        urlArgument.addProperty("stack_trace", "#0 /srv/app/Fetch.php(20): fetch('https://example.org/api')"); transport(urlArgument, 0, "URL argument");
         return assertions;
     }
     private static JsonObject base() { JsonObject fields = new JsonObject(); fields.addProperty("_id", "portable"); fields.addProperty("level", 3); return fields; }

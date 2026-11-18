@@ -11,6 +11,6 @@ class EcsExceptionDecoder : ExceptionDecoder {
         }
         val metadata = StructuredExceptionDecoder.decodeObject(value, event)
         val text = value?.let { ExceptionDetails.value(it, "stack_trace", "stacktrace") }.orEmpty()
-        return TextStackParser.normalize(text, metadata)
+        return TextStackParser.normalize(text, metadata, StructuredExceptionDecoder.rootType(value, event))
     }
 }
