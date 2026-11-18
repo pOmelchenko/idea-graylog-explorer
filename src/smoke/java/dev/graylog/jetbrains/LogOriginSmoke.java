@@ -63,7 +63,11 @@ final class LogOriginSmoke {
                     SmokeUi.clickToolbar(panel, "Copy logging fields example");
                     String example = com.intellij.openapi.ide.CopyPasteManager.getInstance().getContents(java.awt.datatransfer.DataFlavor.stringFlavor);
                     check(example != null && example.contains("<deployed-source-path>") && !example.contains("bad value"), "copy example uses neutral placeholders, not selected event values");
+                    SmokeUi.clickToolbar(panel, "Find log statement");
+                    await(report, () -> originList() != null, () -> {
+                    check(originList().getModel().getSize() == 2, "native chooser offers both logger calls");
                     inspector.show(explicit, connection, null);
+                    check(originList() == null, "changing event closes the owned candidate popup");
                     check(!SmokeUi.command(panel, "Open in Editor").isEnabled(), "logger origin is separate from exception/legacy source navigation");
                     SmokeUi.clickToolbar(panel, "Find log statement");
                     await(report, () -> {
@@ -74,6 +78,7 @@ final class LogOriginSmoke {
                         check(Files.readAllLines(source).equals(lines), "navigation does not modify source");
                         Files.writeString(report.resolve("log-origin-result.txt"), "PASS: PHP category/callee candidates, closure exclusion, PSR-3, custom logger profiles, metadata-only policy, Settings bindings, guidance and actual direct navigation.\n");
                         done.run();
+                    });
                     });
                     } catch (Throwable error) { fail(report, error); } });
                     painted.setRepeats(false); painted.start();
@@ -111,6 +116,20 @@ final class LogOriginSmoke {
         return new LogEvent("log-origin", "fixture", fields);
     }
     private static int line(List<String> lines, String marker) { for (int i=0; i<lines.size(); i++) if (lines.get(i).contains(marker)) return i+1; throw new AssertionError(marker); }
+    private static JList<?> originList() {
+        for (java.awt.Window window : java.awt.Window.getWindows()) {
+            var list = originList(window); if (list != null) return list;
+        }
+        return null;
+    }
+    private static JList<?> originList(java.awt.Component component) {
+        if (!component.isShowing()) return null;
+        if (component instanceof JList<?> list && list.getModel().getSize() > 0 && list.getModel().getElementAt(0) instanceof LogOriginNavigator.Target) return list;
+        if (component instanceof java.awt.Container container) for (java.awt.Component child : container.getComponents()) {
+            var list = originList(child); if (list != null) return list;
+        }
+        return null;
+    }
     private static void check(boolean value, String message) { if (!value) throw new AssertionError(message); }
     @FunctionalInterface private interface Check { boolean run() throws Exception; }
     @FunctionalInterface private interface Step { void run() throws Exception; }
