@@ -35,7 +35,7 @@ public final class GraylogClient implements GraylogApi {
     private static final DateTimeFormatter API_TIME = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
     public static final int SOURCE_LIMIT = 1000;
     static final List<String> EXPORT_FIELDS = List.of("timestamp", "_id", "_index", "level", "level_name", "severity", "source",
-            "message", "full_message", "exception", "ctxt_exception", "ctxt_category", "exception_class", "exception_type", "exceptionClass", "error_type", "error.type",
+            "message", "full_message", "exception", "ctxt_exception", "ctxt_category", "exception_class", "exception_type", "exceptionClass", "error_type", "error", "error.type", "error.message", "error.stack_trace",
             "exception_file", "exception_line", "stack_trace", "stacktrace", "exception_stack_trace", "file", "file_name", "filename",
             "line", "line_number", "service_name", "service", "application_name", "application", "request_id", "trace_id", "correlation_id");
     private final String apiUrl;
@@ -229,8 +229,10 @@ public final class GraylogClient implements GraylogApi {
     }
 
     private boolean needsHydration(LogEvent event) {
-        String exception = event.text("exception").stripLeading();
-        if (exception.startsWith("{") || exception.startsWith("[")) return true;
+        for (String key : List.of("exception", "error")) {
+            String object = event.text(key).stripLeading();
+            if (object.startsWith("{") || object.startsWith("[")) return true;
+        }
         for (String field : format.aliases().values()) if (field.contains(".")) {
             JsonElement exact = event.rawElement(field);
             if (exact != null && !exact.isJsonNull() && !(exact.isJsonPrimitive() && exact.getAsString().isEmpty())) continue;

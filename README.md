@@ -88,7 +88,7 @@ Control hints under **Settings → Tools → Graylog Explorer → Highlighting**
 
 ## Language and log-format support
 
-Log exploration is independent of the service language. Structured exception objects/JSON strings (including Yii `ctxt_exception`) and ECS `error` objects normalize to a common exception model. Field aliases remain configurable per project/connection.
+Log exploration is independent of the service language. Structured exception objects/JSON strings (including Yii `ctxt_exception`) and ECS `error` objects/dotted fields normalize to a common exception model. Field aliases remain configurable per project/connection. ECS fields are included in full-period export; structured CSV values are restored through JSON before indexing.
 
 Text stack frames recognize PHP, JVM (Java/Kotlin), Python tracebacks, V8 JavaScript/TypeScript, Go, Ruby, .NET and Rust paths. Python cause order and JVM cause headers are normalized for source marks; the Exception text tab retains the complete original text, including native/elided frames. Source mappings and root-confinement checks apply to every language.
 

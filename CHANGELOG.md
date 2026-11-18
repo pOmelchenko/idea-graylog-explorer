@@ -3,7 +3,7 @@
 ## 0.15.0
 
 - Parse JVM, Python, V8 JavaScript/TypeScript, Go, Ruby, .NET and Rust text stack frames, alongside PHP; retain raw text and normalize exception causes.
-- Add an ECS error-object schema adapter and immutable log documents with a single cached exception-chain decode.
+- Add an ECS object/dotted-field schema adapter with full-period CSV/JSON restoration and immutable log documents with a single cached exception-chain decode.
 - Share operation-specific keys across Settings effects and Sources/index reuse; labels and Web URLs no longer invalidate results during paging.
 - Use one connection/credential transaction from Settings and Explorer, including obsolete-key cleanup and rollback on concurrent Settings changes.
 - Extract stream request ownership and cross-operation coordination into Kotlin controllers.
