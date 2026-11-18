@@ -19,6 +19,7 @@ class ConnectionDialog(project: Project?, connection: Connection?) : DialogWrapp
     private val token = JBPasswordField()
 
     init {
+        name.name = "connection.name"; api.name = "connection.api"; web.name = "connection.web"; token.name = "connection.token"
         api.columns = 40
         api.emptyText.text = "https://graylog.example.org/api"
         web.emptyText.text = "Optional; defaults to the API URL without /api"
@@ -35,7 +36,7 @@ class ConnectionDialog(project: Project?, connection: Connection?) : DialogWrapp
         row { comment("Shared by all projects. The token is stored only in IDE Password Safe.") }
     }
     override fun getPreferredFocusedComponent(): JComponent = name
-    override fun doValidate(): ValidationInfo? {
+    public override fun doValidate(): ValidationInfo? {
         if (name.text.isBlank()) return ValidationInfo("Enter a connection name.", name)
         try { Connection.normalizeApiUrl(api.text) }
         catch (error: IllegalArgumentException) { return ValidationInfo(error.message ?: "Invalid API URL.", api) }

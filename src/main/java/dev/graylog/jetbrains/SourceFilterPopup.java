@@ -34,6 +34,10 @@ final class SourceFilterPopup {
 
     SourceFilterPopup(Project project, String field, Set<String> selected, Supplier<IdeOptions> options,
                       Consumer<Set<String>> apply, Runnable reload, Runnable closed) {
+        body.setName("sources.body");
+        filter.setName("sources.filter");
+        table.setName("sources.table");
+        refresh.setName("sources.refresh");
         draft.addAll(selected); body.setBorder(JBUI.Borders.empty(8));
         JPanel heading = new JPanel(new BorderLayout(0, 6)); heading.add(filter, BorderLayout.NORTH);
         heading.add(SettingsForms.help("Select one or more sources · field: " + com.intellij.openapi.util.text.StringUtil.escapeXmlEntities(field)), BorderLayout.SOUTH); body.add(heading, BorderLayout.NORTH);
@@ -90,6 +94,9 @@ final class SourceFilterPopup {
         });
         rebuild();
     }
+    JComponent component() { return body; }
+    Set<String> selection() { return Set.copyOf(draft); }
+    List<GraylogApi.SourceValue> values() { return available; }
     JBPopup popup() { return popup; }
     boolean alive() { return !popup.isDisposed(); }
     void loading() { refresh.setEnabled(false); summary = "Loading sources for this period…"; updateStatus(); }

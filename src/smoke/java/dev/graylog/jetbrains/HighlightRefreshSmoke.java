@@ -11,11 +11,11 @@ import java.util.*;
 /** Measures actual EDT refresh work; assertions use identities/work counts rather than flaky time limits. */
 final class HighlightRefreshSmoke {
     static void run(Project project, GraylogPanel panel, Path report) throws Exception {
-        ExceptionHighlights highlights = (ExceptionHighlights) SmokeUi.field(panel, "highlights");
+        ExceptionHighlights highlights = (ExceptionHighlights) panel.decorations();
         var index = SmokeUi.index(panel); var original = index.getResult().sites();
-        String context = (String) SmokeUi.field(highlights, "context");
+        String context = (String) highlights.context();
         var connection = index.getConfig().server().connection(); var root = index.getRoot();
-        LogEvent selected = (LogEvent) SmokeUi.field(panel, "selected");
+        LogEvent selected = (LogEvent) panel.viewState().selected();
         List<ExceptionSites.Site> large = new ArrayList<>(original);
         for (int i = 0; i < 10_000; i++) large.add(new ExceptionSites.Site(
                 new ExceptionSites.Location(root.resolve("unopened/Fixture" + i + ".php"), 1), List.of("FixtureException"), List.of()));

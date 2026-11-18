@@ -7,7 +7,7 @@
 
 ## Установка
 
-1. Собрать проект или взять `build/distributions/graylog-jetbrains-0.14.0.zip`.
+1. Собрать проект или взять `build/distributions/graylog-jetbrains-0.15.4.zip`.
 2. В IDE открыть **Settings → Plugins → ⚙ → Install Plugin from Disk…**.
 3. Выбрать ZIP. Перезапустить IDE, если она предложит это сделать.
 4. Открыть **View → Tool Windows → Graylog**.
@@ -461,3 +461,12 @@ Lucene. В этой версии нет серверных dashboards/alerts,
 - [Маршруты Web UI Graylog: permalink сообщения и поиск](https://github.com/Graylog2/graylog2-server/blob/master/graylog2-web-interface/src/routing/Routes.ts)
 - [Graylog scroll без лимита результатов](https://github.com/Graylog2/graylog2-server/blob/master/graylog2-server/src/main/java/org/graylog2/indexer/searches/Searches.java)
 - [Формат CSV-потока Graylog](https://github.com/Graylog2/graylog2-server/blob/master/graylog2-server/src/main/java/org/graylog2/rest/ScrollChunkWriter.java)
+
+
+### Поддержка других языков в 0.15.0
+
+Общий Explorer не зависит от языка приложения. Для связи с исходниками добавлены парсеры текстовых стеков JVM, Python, JavaScript/TypeScript (V8), Go, Ruby, .NET и Rust; PHP сохранён. Структурированные исключения и ECS (объекты `error` и плоские поля `error.*`) преобразуются в общую модель, а исходный текст стека остаётся доступен целиком.
+
+Для JVM путь вычисляется из package и записанного имени файла относительно настроенного локального корня исходников. Например, `app.Service.run(Service.java:42)` даёт `app/Service.java:42`; при стандартной структуре проекта укажите local root `src/main/java`. Поиск по одному basename не выполняется. Виртуальные URL, native-фреймы, source maps, восстановление пропущенных JVM-фреймов и Python exception groups не поддерживаются. Значения рядом с переменными по-прежнему доступны только через опциональный PHP-адаптер.
+
+Подробности: [обзор переносимости и рефакторинга](portability-2026-11-18.md). Тестовые примеры находятся в `src/test/resources/stacks/`.

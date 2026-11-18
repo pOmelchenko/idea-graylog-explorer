@@ -16,16 +16,45 @@ import java.nio.file.StandardCopyOption;
 /** Exercises real toolbar actions and captures only the isolated test IDE. */
 @SuppressWarnings("removal")
 final class SmokeUi {
-    static SearchController.State search(GraylogPanel panel) { return ((SearchController) field(panel, "search")).state(); }
-    static SearchRequest loadedRequest(GraylogPanel panel) {
-        var page = search(panel).getPage(); return page == null ? null : page.getSession().request();
+    static SearchController.State search(GraylogPanel panel) { return panel.viewState().search(); }
+    static SearchRequest loadedRequest(GraylogPanel panel) { var page = search(panel).getPage(); return page == null ? null : page.getSession().request(); }
+    static PeriodIndexController.State index(Object panel) { return ((GraylogPanel) panel).viewState().index(); }
+    static SourceCatalog.State sources(Object panel) { return ((GraylogPanel) panel).viewState().sources(); }
+    static JBTabs tabs(GraylogPanel panel) { return ((EventInspector) component(panel, "explorer.inspector")).tabs(); }
+    static Component component(Object owner, String id) {
+        Container root = owner instanceof GraylogIdeConfigurable c ? (Container) c.component()
+                : owner instanceof GraylogProjectConfigurable c ? (Container) c.component()
+                : owner instanceof SourceFilterPopup c ? (Container) c.component() : (Container) owner;
+        Component result = named(root, id); if (result == null) throw new AssertionError("Component not found: " + id); return result;
     }
-    static Object field(Object target, String name) {
-        try { var field = target.getClass().getDeclaredField(name); field.setAccessible(true); return field.get(target); }
-        catch (ReflectiveOperationException error) { throw new IllegalStateException(error); }
+    private static Component named(Container root, String id) {
+        if (root == null) return null;
+        if (id.equals(root.getName())) return root;
+        if (root instanceof EventInspector inspector) for (var tab : inspector.tabs().getTabs()) {
+            Component found = named(tab.getComponent(), id); if (found != null) return found;
+        }
+        for (Component child : root.getComponents()) {
+            if (id.equals(child.getName())) return child;
+            if (child instanceof Container nested) { Component found = named(nested, id); if (found != null) return found; }
+        }
+        return null;
     }
-    static PeriodIndexController.State index(Object panel) { return ((PeriodIndexController) field(panel, "index")).state(); }
-    static SourceCatalog.State sources(Object panel) { return ((SourceCatalog) field(panel, "catalog")).state(); }
+    record Command(AnAction action) {
+        private AnActionEvent event() { var event = AnActionEvent.createFromAnAction(action, null, "GraylogSmoke", DataContext.EMPTY_CONTEXT); action.update(event); return event; }
+        void doClick() { var event = event(); if (!event.getPresentation().isEnabled()) throw new AssertionError("Disabled action: " + event.getPresentation().getText()); action.actionPerformed(event); }
+        boolean isEnabled() { return event().getPresentation().isEnabled(); }
+        String getToolTipText() { return event().getPresentation().getDescription(); }
+    }
+    static Command command(Container owner, String title) {
+        var action = findAction(owner, title); if (action == null) throw new AssertionError("Action not found: " + title); return new Command(action);
+    }
+    static javax.swing.JTable addSourceColor(Object settings, String source, String color) {
+        Container colors = (Container) component(settings, "settings.sourceColors");
+        clickToolbar(colors, "Add");
+        javax.swing.JTable table = (javax.swing.JTable) component(colors, "sourceColors.table");
+        if (table.isEditing()) table.getCellEditor().stopCellEditing();
+        int row = table.getRowCount() - 1; table.setValueAt(source, row, 0); table.setValueAt(color, row, 1); return table;
+    }
     static boolean hasToolbarAction(Container parent, String name) { return findAction(parent, name) != null; }
     static void clickToolbar(Container parent, String name) {
         AnAction action = findAction(parent, name);
@@ -46,12 +75,19 @@ final class SmokeUi {
     private static AnAction findAction(Container parent, String name) {
         if (parent instanceof com.intellij.openapi.actionSystem.impl.ActionButton button
                 && name.equals(button.getAction().getTemplatePresentation().getText())) return button.getAction();
-        if (parent instanceof ActionToolbar toolbar) for (AnAction action : toolbar.getActions()) {
-            if (name.equals(action.getTemplatePresentation().getText())) return action;
+        if (parent instanceof ActionToolbar toolbar) {
+            AnAction found = findAction(toolbar.getActionGroup(), name); if (found != null) return found;
         }
         for (Component component : parent.getComponents()) if (component instanceof Container child) {
             AnAction result = findAction(child, name); if (result != null) return result;
         } return null;
+    }
+    private static AnAction findAction(AnAction action, String title) {
+        if (title.equals(action.getTemplatePresentation().getText())) return action;
+        if (action instanceof ActionGroup group) for (AnAction child : group.getChildren(null)) {
+            var found = findAction(child, title); if (found != null) return found;
+        }
+        return null;
     }
     static void prepare(Project project) throws Exception {
         for (Notification notification : NotificationsManager.getNotificationsManager().getNotificationsOfType(Notification.class, project)) notification.expire();

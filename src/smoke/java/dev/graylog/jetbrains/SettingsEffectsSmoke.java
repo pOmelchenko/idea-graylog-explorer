@@ -13,15 +13,15 @@ final class SettingsEffectsSmoke {
         try {
             var original = GraylogIdeSettings.get().getState();
             var page = SmokeUi.search(panel).getPage(); var index = SmokeUi.index(panel).getResult();
-            JTextField query = (JTextField) SmokeUi.field(panel, "query"); String text = query.getText();
+            JTextField query = (JTextField) SmokeUi.component(panel, "explorer.query"); String text = query.getText();
             query.setText("unsent_query_draft");
             var style = original.copy(); style.options.backgroundLight = style.options.backgroundLight.equals("#ABCDEF") ? "#FEDCBA" : "#ABCDEF";
             GraylogIdeSettings.get().replace(style);
-            await(report, () -> ((IdeOptions) SmokeUi.field(panel, "ideOptions")).backgroundLight.equals(style.options.backgroundLight), () -> {
+            await(report, () -> ((IdeOptions) panel.viewState().options()).backgroundLight.equals(style.options.backgroundLight), () -> {
                 same(page, SmokeUi.search(panel).getPage(), "Style changed the page"); same(index, SmokeUi.index(panel).getResult(), "Style restarted the index");
                 var schedule = style.copy(); schedule.options.liveIntervalSeconds++;
                 GraylogIdeSettings.get().replace(schedule);
-                await(report, () -> ((Timer) SmokeUi.field(panel, "timer")).getDelay() == schedule.options.liveIntervalSeconds * 1000, () -> {
+                await(report, () -> panel.viewState().liveDelay() == schedule.options.liveIntervalSeconds * 1000, () -> {
                     same(page, SmokeUi.search(panel).getPage(), "Live schedule changed the page"); same(index, SmokeUi.index(panel).getResult(), "Live schedule restarted the index");
                     var limits = schedule.copy(); limits.options.examplesPerLocation++;
                     GraylogIdeSettings.get().replace(limits);
@@ -60,7 +60,7 @@ final class SettingsEffectsSmoke {
         await(report, () -> ready(panel) && SmokeUi.index(panel).getResult() != index, () -> {
             same(page, SmokeUi.search(panel).getPage(), "Path mapping reloaded the page");
             if (SmokeUi.index(panel).getResult().sites().stream().noneMatch(site -> site.location().file().startsWith(target))) throw new AssertionError("Index did not apply the new mapping");
-            var label = (javax.swing.JLabel) SmokeUi.field(SmokeUi.field(panel, "inspector"), "sourceMapping");
+            var label = (javax.swing.JLabel) SmokeUi.component(panel, "inspector.sourceMapping");
             if (!label.getText().contains(target.toString())) throw new AssertionError("Inspector kept the previous local mapping");
             var current = SmokeUi.index(panel).getResult(); workspace.replace(original);
             await(report, () -> ready(panel) && SmokeUi.index(panel).getResult() != current, () -> {

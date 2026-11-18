@@ -131,7 +131,7 @@ final class ControllerTests {
         controller.load(first); eq(8, tasks.jobs.size());
     }
 
-    private static final class Api implements GraylogApi {
+    static final class Api implements GraylogApi {
         boolean failSources, failIndex, failSearch;
         final List<SearchRequest> searched = new ArrayList<>();
         @Override public List<Stream> streams() { return List.of(); }
@@ -155,7 +155,7 @@ final class ControllerTests {
         }
         @Override public void close() { }
     }
-    private static final class Queue implements TaskRunner {
+    static final class Queue implements TaskRunner {
         final List<Job<?>> jobs = new ArrayList<>();
         final List<Runnable> ui = new ArrayList<>();
         @Override public <T> Future<?> submit(Callable<T> work, Consumer<T> success, Consumer<Throwable> failure) {
@@ -165,7 +165,7 @@ final class ControllerTests {
         void finish(int index) { jobs.get(index).finish(); }
         void drainUi() { List<Runnable> pending = List.copyOf(ui); ui.clear(); pending.forEach(Runnable::run); }
     }
-    private static final class Job<T> {
+    static final class Job<T> {
         final Callable<T> work;
         final Consumer<T> success;
         final Consumer<Throwable> failure;

@@ -15,7 +15,8 @@ final class SourceColorSettings extends JPanel {
     private final Model model = new Model();
     private final JBTable table = new JBTable(model);
     SourceColorSettings() {
-        super(new BorderLayout(0, 8)); setBorder(JBUI.Borders.emptyTop(12));
+        super(new BorderLayout(0, 8)); setName("settings.sourceColors"); setBorder(JBUI.Borders.emptyTop(12));
+        table.setName("sourceColors.table");
         JPanel heading = new JPanel(new BorderLayout(0, 8)); heading.add(enabled, BorderLayout.NORTH);
         add(heading, BorderLayout.NORTH);
         table.setShowGrid(false); table.setStriped(true); table.setRowHeight(JBUI.scale(24)); table.setIntercellSpacing(JBUI.size(0, 0));

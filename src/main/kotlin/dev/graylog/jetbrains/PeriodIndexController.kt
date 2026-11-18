@@ -25,10 +25,10 @@ class PeriodIndexController(
     private var generation = 0L
     private var closed = false
     fun state(): State = current
-    fun matches(config: OperationConfig, request: SearchRequest) = current.config == config && request.sameScope(current.request)
+    fun matches(config: OperationConfig, request: SearchRequest) = current.config?.let(OperationKeys::index) == OperationKeys.index(config) && request.sameScope(current.request)
 
     fun start(config: OperationConfig, request: SearchRequest, root: Path?, force: Boolean) {
-        if (closed || (!force && matches(config, request) && current.phase in listOf(Phase.LOADING, Phase.READY))) return
+        if (closed || (!force && matches(config, request) && current.root == root && current.phase in listOf(Phase.LOADING, Phase.READY))) return
         stop()
         val revision = generation
         val snapshot = config

@@ -1,0 +1,6 @@
+java.lang.IllegalStateException: outer
+    at app.Service.run(Service.java:42)
+Caused by: java.io.IOException: inner
+    at java.base/app.Worker.read(Worker.java:18)
+    at app.Native.call(Native Method)
+    ... 1 more

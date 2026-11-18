@@ -8,6 +8,8 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogPanel
+import com.intellij.ui.ColorPanel
+import java.awt.Color
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.OnePixelSplitter
 import com.intellij.ui.SimpleTextAttributes
@@ -52,68 +54,51 @@ class GraylogIdeConfigurable : SearchableConfigurable, Configurable.NoScroll {
     private lateinit var apiPreview: JTextField
     private lateinit var webPreview: JTextField
     private lateinit var testConnectionButton: JButton
-    private lateinit var liveInterval: JSpinner
-    private lateinit var connectTimeout: JSpinner
-    private lateinit var requestTimeout: JSpinner
-    private lateinit var batchSize: JSpinner
-    private lateinit var samples: JSpinner
-    private lateinit var period: JComboBox<String>
-    private lateinit var pageSize: JComboBox<Int>
     private lateinit var defaultConnection: ComboBox<Choice>
-    private lateinit var liveOnOpen: JCheckBox
-    private lateinit var autoIndex: JCheckBox
-    private lateinit var highlight: JCheckBox
-    private lateinit var gutter: JCheckBox
-    private lateinit var stripe: JCheckBox
-    private lateinit var inlineDetails: JCheckBox
-    private lateinit var inlineValues: JCheckBox
-    private val backgroundLight = JBTextField()
-    private val backgroundDark = JBTextField()
-    private val selectedLight = JBTextField()
-    private val selectedDark = JBTextField()
     private lateinit var sourceColors: SourceColorSettings
 
+    fun component(): JComponent? = panel
     override fun getId() = ID
     override fun getDisplayName() = "Graylog Explorer"
     override fun createComponent(): JComponent {
         disposed = false; forms.clear()
         executor = AppExecutorUtil.createBoundedApplicationPoolExecutor("Graylog settings connection test", 2)
-        list = JBList(connections); testStatus = JLabel(" ")
+        list = JBList(connections).apply { name = "settings.connections" }; testStatus = JLabel(" ").apply { name = "settings.testStatus" }
         defaultConnection = SettingsForms.combo()
         val tabs = JBTabbedPane()
         tabs.addTab("Connections", connectionsPanel())
         val behavior = panel {
             group("Search defaults") {
                 row("Default connection:") { cell(defaultConnection).align(AlignX.FILL).resizableColumn().bindItem({ choice(draft.options.defaultConnection) }, { draft.options.defaultConnection = it?.id.orEmpty() }) }
-                row("Initial search period:") { period = comboBox(PERIOD_NAMES).bindItem({ PERIOD_NAMES[PERIODS.indexOf(draft.options.defaultPeriodSeconds)] }, { draft.options.defaultPeriodSeconds = PERIODS[PERIOD_NAMES.indexOf(it)] }).component }
-                row("Initial page size:") { pageSize = comboBox(listOf(100, 250, 500)).bindItem({ draft.options.defaultPageSize }, { draft.options.defaultPageSize = it ?: 100 }).component }
+                row("Initial search period:") { comboBox(PERIOD_NAMES).bindItem({ PERIOD_NAMES[PERIODS.indexOf(draft.options.defaultPeriodSeconds)] }, { draft.options.defaultPeriodSeconds = PERIODS[PERIOD_NAMES.indexOf(it)] }).component.apply { name = "settings.period" } }
+                row("Initial page size:") { comboBox(listOf(100, 250, 500)).bindItem({ draft.options.defaultPageSize }, { draft.options.defaultPageSize = it ?: 100 }).component.apply { name = "settings.pageSize" } }
             }
             group("Live updates") {
-                row { liveOnOpen = checkBox("Start Live when Explorer opens").bindSelected({ draft.options.liveOnOpen }, { draft.options.liveOnOpen = it }).component }
-                row("Refresh interval (seconds):") { liveInterval = spinner(1..3600).bindIntValue({ draft.options.liveIntervalSeconds }, { draft.options.liveIntervalSeconds = it }).component }
+                row { checkBox("Start Live when Explorer opens").bindSelected({ draft.options.liveOnOpen }, { draft.options.liveOnOpen = it }).component.apply { name = "settings.liveOnOpen" } }
+                row("Refresh interval (seconds):") { spinner(1..3600).bindIntValue({ draft.options.liveIntervalSeconds }, { draft.options.liveIntervalSeconds = it }).component.apply { name = "settings.liveInterval" } }
             }
             group("Exception index") {
-                row { autoIndex = checkBox("Build the whole-period exception index after each search").bindSelected({ draft.options.autoIndex }, { draft.options.autoIndex = it }).component }
-                row("Examples per source location:") { samples = spinner(1..500).bindIntValue({ draft.options.examplesPerLocation }, { draft.options.examplesPerLocation = it }).component }
+                row { checkBox("Build the whole-period exception index after each search").bindSelected({ draft.options.autoIndex }, { draft.options.autoIndex = it }).component.apply { name = "settings.autoIndex" } }
+                row("Examples per source location:") { spinner(1..500).bindIntValue({ draft.options.examplesPerLocation }, { draft.options.examplesPerLocation = it }).component.apply { name = "settings.samples" } }
             }
         }
         val colors = panel {
-            row { highlight = checkBox("Enable code highlights by default").bindSelected({ draft.options.highlightByDefault }, { draft.options.highlightByDefault = it }).component }
-            row { gutter = checkBox("Show Graylog gutter markers").bindSelected({ draft.options.gutterIcons }, { draft.options.gutterIcons = it }).component }
-            row { stripe = checkBox("Show marks on the editor error stripe").bindSelected({ draft.options.errorStripe }, { draft.options.errorStripe = it }).component }
-            row { inlineDetails = checkBox("Show exception messages next to source lines").bindSelected({ draft.options.inlineDetails }, { draft.options.inlineDetails = it }).component }
-            row { inlineValues = checkBox("Show selected log values beside PHP variables when source mapping is unambiguous").bindSelected({ draft.options.inlineValues }, { draft.options.inlineValues = it }).component }
+            row { checkBox("Enable code highlights by default").bindSelected({ draft.options.highlightByDefault }, { draft.options.highlightByDefault = it }).component.apply { name = "settings.highlight" } }
+            row { checkBox("Show Graylog gutter markers").bindSelected({ draft.options.gutterIcons }, { draft.options.gutterIcons = it }).component.apply { name = "settings.gutter" } }
+            row { checkBox("Show marks on the editor error stripe").bindSelected({ draft.options.errorStripe }, { draft.options.errorStripe = it }).component.apply { name = "settings.stripe" } }
+            row { checkBox("Show exception messages next to source lines").bindSelected({ draft.options.inlineDetails }, { draft.options.inlineDetails = it }).component.apply { name = "settings.inlineDetails" } }
+            row { checkBox("Show selected log values beside PHP variables when source mapping is unambiguous").bindSelected({ draft.options.inlineValues }, { draft.options.inlineValues = it }).component.apply { name = "settings.inlineValues" } }
             group("Exception colors") {
-                color("Background — light theme", backgroundLight, { draft.options.backgroundLight }, { draft.options.backgroundLight = it })
-                color("Background — dark theme", backgroundDark, { draft.options.backgroundDark }, { draft.options.backgroundDark = it })
-                color("Selected exception — light theme", selectedLight, { draft.options.selectedLight }, { draft.options.selectedLight = it })
-                color("Selected exception — dark theme", selectedDark, { draft.options.selectedDark }, { draft.options.selectedDark = it })
+                color("Background — light theme", "backgroundLight", { draft.options.backgroundLight }, { draft.options.backgroundLight = it })
+                color("Background — dark theme", "backgroundDark", { draft.options.backgroundDark }, { draft.options.backgroundDark = it })
+                color("Selected exception — light theme", "selectedLight", { draft.options.selectedLight }, { draft.options.selectedLight = it })
+                color("Selected exception — dark theme", "selectedDark", { draft.options.selectedDark }, { draft.options.selectedDark = it })
             }
         }
         val network = panel {
-            row("Connect timeout (seconds):") { connectTimeout = spinner(1..300).bindIntValue({ draft.options.connectTimeoutSeconds }, { draft.options.connectTimeoutSeconds = it }).component }
-            row("Request timeout (seconds):") { requestTimeout = spinner(1..3600).bindIntValue({ draft.options.requestTimeoutSeconds }, { draft.options.requestTimeoutSeconds = it }).component }
-            row("Scroll export batch size:") { batchSize = spinner(1..5000).bindIntValue({ draft.options.exportBatchSize }, { draft.options.exportBatchSize = it }).component }
+            row("Connect timeout (seconds):") { spinner(1..300).bindIntValue({ draft.options.connectTimeoutSeconds }, { draft.options.connectTimeoutSeconds = it }).component.apply { name = "settings.connectTimeout" } }
+            row("Request timeout (seconds):") { spinner(1..3600).bindIntValue({ draft.options.requestTimeoutSeconds }, { draft.options.requestTimeoutSeconds = it }).component.apply { name = "settings.requestTimeout" } }
+            row("Scroll export batch size:") { spinner(1..5000).bindIntValue({ draft.options.exportBatchSize }, { draft.options.exportBatchSize = it }).component.apply { name = "settings.batchSize" } }
         }
         forms += listOf(behavior, colors, network)
         tabs.addTab("Search and updates", SettingsForms.tab(behavior)); tabs.addTab("Highlighting", SettingsForms.tab(colors))
@@ -122,8 +107,13 @@ class GraylogIdeConfigurable : SearchableConfigurable, Configurable.NoScroll {
             panel = it; it.add(SettingsForms.help("Connections and defaults apply to all projects. Source mappings are under Project settings."), BorderLayout.NORTH); it.add(tabs)
         }
     }
-    private fun Panel.color(label: String, field: JBTextField, get: () -> String, set: (String) -> Unit) {
-        row("$label:") { cell(SettingsForms.color(field)).onApply { set(field.text.trim()) }.onReset { field.text = get() }.onIsModified { field.text.trim() != get() } }
+    private fun Panel.color(label: String, id: String, get: () -> String, set: (String) -> Unit) {
+        val picker = ColorPanel().apply { name = "settings.$id"; setSupportTransparency(false) }
+        row("$label:") {
+            cell(picker).onApply { set(SourceColors.hex(picker.selectedColor ?: Color.LIGHT_GRAY)) }
+                .onReset { picker.selectedColor = try { Color.decode(get()) } catch (_: IllegalArgumentException) { Color.LIGHT_GRAY } }
+                .onIsModified { picker.selectedColor?.let { SourceColors.hex(it) } != get() }
+        }
     }
     private fun connectionsPanel(): JComponent {
         list.selectionMode = ListSelectionModel.SINGLE_SELECTION; list.fixedCellHeight = JBUI.scale(26); list.emptyText.text = "No Graylog connections"
@@ -204,13 +194,14 @@ class GraylogIdeConfigurable : SearchableConfigurable, Configurable.NoScroll {
         if (!SettingsValues.same(base, GraylogIdeSettings.get().state)) throw ConfigurationException("Graylog IDE settings changed in another window. Reopen Settings before applying your changes.")
         val value = try { draft.copy().also { it.options = options(); it.connections = (0 until connections.size()).map { index -> connections[index].copy() }; it.validate() } }
             catch (error: IllegalArgumentException) { throw ConfigurationException(error.message.orEmpty()) }
-        val credentials = CredentialUpdate(base.connections, value.connections, pendingTokens)
-        if (credentials.hasChanges()) {
-            val failure = AtomicReference<RuntimeException>()
-            ProgressManager.getInstance().runProcessWithProgressSynchronously({ try { credentials.apply(GraylogCredentials.STORE) } catch (error: RuntimeException) { failure.set(error) } }, "Saving Graylog credentials", false, null)
-            if (failure.get() != null) throw ConfigurationException("Could not update Password Safe; connection settings were not applied.")
-        }
-        GraylogIdeSettings.get().replace(value); clearTokens(); base = value.copy(); draft = value.copy(); forms.forEach { it.reset() }
+        val failure = AtomicReference<RuntimeException>()
+        val saved = AtomicReference<GraylogIdeSettings.Data>()
+        ProgressManager.getInstance().runProcessWithProgressSynchronously({
+            try { saved.set(ConnectionManager.get().replace(base, value, pendingTokens)) }
+            catch (error: RuntimeException) { failure.set(error) }
+        }, "Saving Graylog settings and credentials", false, null)
+        failure.get()?.let { throw ConfigurationException(it.message ?: "Could not save Graylog settings and credentials.") }
+        clearTokens(); base = saved.get().copy(); draft = base.copy(); forms.forEach { it.reset() }
     }
     override fun reset() {
         cancelConnectionTest(); ProjectManager.getInstance().openProjects.filterNot { it.isDisposed }.forEach { GraylogSettings.get(it) }

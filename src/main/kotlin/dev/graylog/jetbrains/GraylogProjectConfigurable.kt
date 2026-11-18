@@ -36,15 +36,8 @@ class GraylogProjectConfigurable(private val project: Project) : SearchableConfi
     private lateinit var customize: JCheckBox
     private lateinit var mappingModel: MappingModel
     private lateinit var mappings: JBTable
-    private lateinit var service: JBTextField
-    private lateinit var exceptionType: JBTextField
-    private lateinit var exceptionObject: JBTextField
-    private lateinit var file: JBTextField
-    private lateinit var line: JBTextField
-    private lateinit var stack: JBTextField
-    private lateinit var requestId: JBTextField
-    private lateinit var traceId: JBTextField
 
+    fun component(): JComponent? = panel
     override fun getId() = ID
     override fun getDisplayName() = "Project settings"
     override fun createComponent(): JComponent {
@@ -79,14 +72,14 @@ class GraylogProjectConfigurable(private val project: Project) : SearchableConfi
                 row { comment("An empty local root uses the project directory.<br>The longest matching remote prefix takes priority.") }
             }
             group("Log fields") {
-                row("Service field:") { service = textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.serviceField }, { profileDraft.fields.serviceField = it.trim() }).component }
-                row("Exception type field:") { exceptionType = textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.exceptionTypeField }, { profileDraft.fields.exceptionTypeField = it.trim() }).component }
-                row("Exception object field:") { exceptionObject = textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.exceptionObjectField }, { profileDraft.fields.exceptionObjectField = it.trim() }).component }
-                row("Source file field:") { file = textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.fileField }, { profileDraft.fields.fileField = it.trim() }).component }
-                row("Source line field:") { line = textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.lineField }, { profileDraft.fields.lineField = it.trim() }).component }
-                row("Stack trace field:") { stack = textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.stackTraceField }, { profileDraft.fields.stackTraceField = it.trim() }).component }
-                row("Request ID field:") { requestId = textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.requestIdField }, { profileDraft.fields.requestIdField = it.trim() }).component }
-                row("Trace ID field:") { traceId = textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.traceIdField }, { profileDraft.fields.traceIdField = it.trim() }).component }
+                row("Service field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.serviceField }, { profileDraft.fields.serviceField = it.trim() }).component.apply { name = "project.service" } }
+                row("Exception type field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.exceptionTypeField }, { profileDraft.fields.exceptionTypeField = it.trim() }).component.apply { name = "project.exceptionType" } }
+                row("Exception object field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.exceptionObjectField }, { profileDraft.fields.exceptionObjectField = it.trim() }).component.apply { name = "project.exceptionObject" } }
+                row("Source file field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.fileField }, { profileDraft.fields.fileField = it.trim() }).component.apply { name = "project.file" } }
+                row("Source line field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.lineField }, { profileDraft.fields.lineField = it.trim() }).component.apply { name = "project.line" } }
+                row("Stack trace field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.stackTraceField }, { profileDraft.fields.stackTraceField = it.trim() }).component.apply { name = "project.stack" } }
+                row("Request ID field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.requestIdField }, { profileDraft.fields.requestIdField = it.trim() }).component.apply { name = "project.requestId" } }
+                row("Trace ID field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.traceIdField }, { profileDraft.fields.traceIdField = it.trim() }).component.apply { name = "project.traceId" } }
                 row { comment("Use dotted names for nested fields, for example context.request_id.") }
             }
         }.apply { border = JBUI.Borders.emptyTop(14) }
@@ -104,6 +97,8 @@ class GraylogProjectConfigurable(private val project: Project) : SearchableConfi
                 showProfile()
             }
         }
+        profile.name = "project.profile"; preferred.name = "project.preferred"; highlight.name = "project.highlight"
+        customize.name = "project.customize"; mappings.name = "project.mappings"
         val content = JPanel(BorderLayout()).apply { add(topForm, BorderLayout.NORTH); add(profileForm) }
         return JPanel(BorderLayout()).also { panel = it; it.add(content, BorderLayout.NORTH) }
     }

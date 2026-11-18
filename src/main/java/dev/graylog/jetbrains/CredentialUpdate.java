@@ -30,7 +30,8 @@ final class CredentialUpdate {
         }
     }
     boolean hasChanges() { return !writes.isEmpty() || !removals.isEmpty(); }
-    void apply(Store store) {
+    void apply(Store store) { apply(store, () -> {}); }
+    void apply(Store store, Runnable commit) {
         Map<String, String> previous = new LinkedHashMap<>();
         Set<String> keys = new LinkedHashSet<>(writes.keySet()); keys.addAll(removals);
         // All reads precede writes: a failed snapshot must not alter the credential store.
@@ -39,6 +40,7 @@ final class CredentialUpdate {
         try {
             for (var entry : writes.entrySet()) { touched.add(entry.getKey()); store.save(entry.getKey(), entry.getValue()); }
             for (String key : removals) { touched.add(key); store.save(key, null); }
+            commit.run();
         } catch (RuntimeException error) {
             for (int i = touched.size() - 1; i >= 0; i--) {
                 String key = touched.get(i);

@@ -1,0 +1,4 @@
+Exception in thread "main" java.lang.RuntimeException: outer
+    at app.Outer.run(Outer.java:10)
+Caused by: java.lang.IllegalArgumentException: inner
+    at app.Inner.run(Inner.java:20)

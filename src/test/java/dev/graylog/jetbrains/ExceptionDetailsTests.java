@@ -73,7 +73,9 @@ final class ExceptionDetailsTests {
         eq("", ExceptionSites.exceptionName(new LogEvent("plain", "", bad)));
         bad.addProperty("ctxt_category", "GraphQL\\Error\\UserError");
         eq("GraphQL\\Error\\UserError", ExceptionSites.exceptionName(new LogEvent("category", "", bad)));
-        root.add("previous", root); eq(64, ExceptionDetails.chain(new LogEvent("depth", "", nativeFields)).size()); root.remove("previous");
+        JsonObject nestedDepth = root;
+        for (int depth = 0; depth < 80; depth++) { var next = new JsonObject(); next.addProperty("class", "RuntimeException"); nestedDepth.add("previous", next); nestedDepth = next; }
+        eq(64, ExceptionDetails.chain(new LogEvent("depth", "", nativeFields)).size()); root.remove("previous");
         transport(fields);
         validationChain(fields);
         return assertions;

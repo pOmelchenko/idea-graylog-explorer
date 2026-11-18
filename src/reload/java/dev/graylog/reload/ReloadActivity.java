@@ -6,7 +6,7 @@ import com.intellij.ide.plugins.DynamicPlugins;
 import com.intellij.ide.plugins.PluginDescriptorLoader;
 import com.intellij.ide.plugins.PluginMainDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
-import com.intellij.openapi.actionSystem.ActionManager;
+import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.extensions.PluginId;
@@ -19,6 +19,8 @@ import com.intellij.openapi.util.BuildNumber;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.wm.ToolWindowManager;
 import javax.swing.*;
+import java.awt.Component;
+import java.awt.Container;
 import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -76,7 +78,7 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
                     check(file != null, "Fixture source exists");
                     FileEditorManager.getInstance(project).openTextEditor(new OpenFileDescriptor(project, file, 45, 0), true);
                     Object panel = panel();
-                    check(QUERY.equals(((JTextField) field(panel, "query")).getText()), "Query survived load");
+                    check(QUERY.equals(((JTextField) component(panel, "explorer.query")).getText()), "Query survived load");
                     panel.getClass().getMethod("searchText", String.class).invoke(panel, QUERY);
                     deadline = System.currentTimeMillis() + 60000;
                     poll(this::ready);
@@ -87,8 +89,8 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
 
     private boolean ready() throws Exception {
         Object panel = panel();
-        JTable events = (JTable) field(panel, "events");
-        if (events.getRowCount() == 0 || searchBusy(panel) || !((JLabel) field(panel, "indexStatus")).getText().startsWith("Whole period")) return false;
+        JTable events = (JTable) component(panel, "explorer.events");
+        if (events.getRowCount() == 0 || searchBusy(panel) || !((JLabel) component(panel, "explorer.indexStatus")).getText().startsWith("Whole period")) return false;
         for (int row = 0; row < events.getRowCount(); row++) {
             if (String.valueOf(events.getValueAt(row, 3)).contains("Invalid phone")) {
                 events.setRowSelectionInterval(row, row); break;
@@ -98,12 +100,14 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
         check(ActionManager.getInstance().getAction("Graylog.SearchSelection") != null, "Action registered");
         var providers = (com.intellij.openapi.extensions.ExtensionPointName<?>) type("VariableHintProvider").getField("EP").get(null);
         check(providers.getExtensionList().stream().anyMatch(it -> it.getClass().getName().endsWith("PhpVariableHintProvider")), "PHP extension available");
-        ((JToggleButton) field(panel, "live")).setSelected(true);
-        var method = panel.getClass().getDeclaredMethod("createSourcePopup", JComponent.class, Runnable.class);
-        method.setAccessible(true);
-        JBPopup popup = (JBPopup) method.invoke(panel, panel, null);
-        popup.showInCenterOf((JComponent) panel);
-        check(popup.isVisible(), "Sources popup opened");
+        var live = findAction((Container) panel, "Live");
+        var liveEvent = AnActionEvent.createFromAnAction(live, null, "GraylogReload", DataContext.EMPTY_CONTEXT);
+        ((ToggleAction) live).setSelected(liveEvent, true);
+        AbstractButton button = sourceButton((Container) panel);
+        check(button != null, "Sources button available");
+        button.doClick();
+        Object view = panel.getClass().getMethod("viewState").invoke(panel);
+        check(Boolean.TRUE.equals(view.getClass().getMethod("sourcesPopupVisible").invoke(view)), "Sources popup opened");
         step("Cycle " + cycle + ": search, index, action, popup, Live and editor hints active");
         later(this::unload);
         return true;
@@ -167,7 +171,7 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
             check(window != null, "Reloaded window registered");
             window.show(() -> {
                 try {
-                    check(QUERY.equals(((JTextField) field(panel(), "query")).getText()), "Query retained after update and reload");
+                    check(QUERY.equals(((JTextField) component(panel(), "explorer.query")).getText()), "Query retained after update and reload");
                     check(ActionManager.getInstance().getAction("Graylog.SearchSelection") != null, "Reloaded action registered once");
                     Files.writeString(report.resolve("result.txt"), "PASS: Production plugin updated and reloaded in the same JVM; both old classloaders collected after platform icon cache cleanup. Open Explorer, Live, source popup, index, PHP hints, actions and saved query checked.\n");
                 } catch (Throwable error) { fail(error); }
@@ -205,12 +209,29 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
         return count;
     }
     private static boolean searchBusy(Object panel) throws Exception {
-        Object controller = field(panel, "search"); Object state = controller.getClass().getMethod("state").invoke(controller);
+        Object view = panel.getClass().getMethod("viewState").invoke(panel);
+        Object state = view.getClass().getMethod("search").invoke(view);
         return state.getClass().getMethod("getPhase").invoke(state).toString().equals("LOADING");
     }
     private static boolean owned(Object object) { return object.getClass().getName().startsWith("dev.graylog.jetbrains."); }
-    private static Object field(Object object, String name) throws Exception {
-        var field = object.getClass().getDeclaredField(name); field.setAccessible(true); return field.get(object);
+    private static AnAction findAction(Container parent, String prefix) {
+        if (parent instanceof ActionToolbar toolbar) for (AnAction action : toolbar.getActions()) {
+            String title = action.getTemplatePresentation().getText(); if (title != null && title.startsWith(prefix)) return action;
+        }
+        for (Component child : parent.getComponents()) if (child instanceof Container nested) { var found = findAction(nested, prefix); if (found != null) return found; }
+        return null;
+    }
+    private static AbstractButton sourceButton(Container parent) {
+        if (parent instanceof AbstractButton b && b.getText() != null && b.getText().startsWith("Source")) return b;
+        for (Component child : parent.getComponents()) if (child instanceof Container nested) { var found = sourceButton(nested); if (found != null) return found; }
+        return null;
+    }
+    private static Component component(Object owner, String id) {
+        if (owner instanceof Component c && id.equals(c.getName())) return c;
+        if (owner instanceof Container container) for (Component child : container.getComponents()) {
+            Component found = component(child, id); if (found != null) return found;
+        }
+        return null;
     }
     private static void set(Object object, String name, Object value) throws Exception { object.getClass().getField(name).set(object, value); }
     private static void check(boolean condition, String label) { if (!condition) throw new AssertionError(label); }

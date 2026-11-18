@@ -1,0 +1,220 @@
+[
+  {
+    "name": "php",
+    "frames": [
+      {
+        "path": "/srv/app/src/Phone.php",
+        "line": 46
+      },
+      {
+        "path": "/srv/app/src/Controller.php",
+        "line": 21
+      }
+    ],
+    "types": [
+      "RuntimeException"
+    ],
+    "origins": [
+      46
+    ]
+  },
+  {
+    "name": "jvm",
+    "frames": [
+      {
+        "path": "app/Service.java",
+        "line": 42
+      },
+      {
+        "path": "app/Worker.java",
+        "line": 18
+      }
+    ],
+    "types": [
+      "java.lang.IllegalStateException",
+      "java.io.IOException"
+    ],
+    "origins": [
+      42,
+      18
+    ]
+  },
+  {
+    "name": "jvm-uncaught",
+    "frames": [{"path": "app/Outer.java", "line": 10}, {"path": "app/Inner.java", "line": 20}],
+    "types": ["java.lang.RuntimeException", "java.lang.IllegalArgumentException"],
+    "origins": [10, 20]
+  },
+  {
+    "name": "python-single",
+    "frames": [{"path": "/srv/app/main.py", "line": 12}, {"path": "/srv/app/user.py", "line": 43}],
+    "types": ["ValueError"],
+    "origins": [43]
+  },
+  {
+    "name": "kotlin",
+    "frames": [
+      {
+        "path": "app/jobs/Worker.kt",
+        "line": 27
+      },
+      {
+        "path": "app/Main.kt",
+        "line": 8
+      }
+    ],
+    "types": [
+      "java.lang.IllegalArgumentException"
+    ],
+    "origins": [
+      27
+    ]
+  },
+  {
+    "name": "python",
+    "frames": [
+      {
+        "path": "/srv/app/main.py",
+        "line": 12
+      },
+      {
+        "path": "/srv/app/user.py",
+        "line": 43
+      },
+      {
+        "path": "/srv/app/main.py",
+        "line": 15
+      }
+    ],
+    "types": [
+      "RuntimeError",
+      "ValueError"
+    ],
+    "origins": [
+      15,
+      43
+    ]
+  },
+  {
+    "name": "node",
+    "frames": [
+      {
+        "path": "/srv/app/dist/main.js",
+        "line": 42
+      },
+      {
+        "path": "/srv/app/src/worker.ts",
+        "line": 12
+      }
+    ],
+    "types": [
+      "TypeError"
+    ],
+    "origins": [
+      42
+    ]
+  },
+  {
+    "name": "go",
+    "frames": [
+      {
+        "path": "/srv/app/main.go",
+        "line": 42
+      },
+      {
+        "path": "/srv/app/cmd/main.go",
+        "line": 8
+      }
+    ],
+    "types": [
+      "panic"
+    ],
+    "origins": [
+      42
+    ]
+  },
+  {
+    "name": "ruby",
+    "frames": [
+      {
+        "path": "/srv/app/job.rb",
+        "line": 31
+      },
+      {
+        "path": "/srv/app/main.rb",
+        "line": 9
+      }
+    ],
+    "types": [
+      "RuntimeError"
+    ],
+    "origins": [
+      31
+    ]
+  },
+  {
+    "name": "dotnet",
+    "frames": [
+      {
+        "path": "C:\\app\\Service.cs",
+        "line": 42
+      },
+      {
+        "path": "C:\\app\\Program.cs",
+        "line": 8
+      }
+    ],
+    "types": [
+      "System.InvalidOperationException"
+    ],
+    "origins": [
+      42
+    ]
+  },
+  {
+    "name": "dotnet-inner",
+    "frames": [
+      {"path": "C:\\app\\Validator.cs", "line": 12},
+      {"path": "C:\\app\\Service.cs", "line": 34},
+      {"path": "C:\\app\\Service.cs", "line": 42},
+      {"path": "C:\\app\\Program.cs", "line": 8}
+    ],
+    "types": ["System.InvalidOperationException", "System.ArgumentException"],
+    "origins": [42, 12]
+  },
+  {
+    "name": "dotnet-nested",
+    "frames": [
+      {"path": "C:\\app\\Format.cs", "line": 11},
+      {"path": "C:\\app\\Parser.cs", "line": 20},
+      {"path": "C:\\app\\Adapter.cs", "line": 30},
+      {"path": "C:\\app\\Service.cs", "line": 42},
+      {"path": "C:\\app\\Program.cs", "line": 8}
+    ],
+    "types": ["System.InvalidOperationException", "System.ApplicationException", "System.FormatException"],
+    "origins": [42, 30, 11]
+  },
+  {
+    "name": "rust",
+    "frames": [
+      {
+        "path": "src/main.rs",
+        "line": 2
+      },
+      {
+        "path": "/rustc/library/core/src/panicking.rs",
+        "line": 75
+      },
+      {
+        "path": "./src/main.rs",
+        "line": 2
+      }
+    ],
+    "types": [
+      "panic"
+    ],
+    "origins": [
+      2
+    ]
+  }
+]

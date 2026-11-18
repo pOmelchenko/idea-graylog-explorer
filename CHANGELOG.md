@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.15.4
+
+- Keep filesystem stack locations when the same line contains URL arguments; filter virtual locations per match and decode file URLs individually.
+- Retain types parsed from ECS stacks when type metadata is missing or blank; explicitly reported types, messages, origins and structured causes keep their precedence.
+- Check both fixes across runtime fixtures, editor sites and full-period export/hydration.
+
+## 0.15.3
+
+- Decode dotted ECS stack data when type metadata is absent or blank, retaining the same frame/cause locations as native error objects.
+- Check every runtime fixture without error.type through native/dotted decoding and full-period export/hydration; keep message-only and blank-stack records outside this fallback.
+
+## 0.15.2
+
+- Recognize JVM uncaught-exception headers, including custom throwable names, before assigning frames to causes.
+- Share one Kotlin runtime-text parser between top-level stacks and ECS objects/dotted fields; preserve ECS metadata while normalizing Python ordering and nested causes.
+- Separate structural header recognition from frame regexes. Check the runtime fixture corpus across text/ECS/export paths and keep unknown parent frames out of a recognized cause.
+
+## 0.15.1
+
+- Preserve explicit exception file/line metadata when a text stack starts at a caller; keep caller frames and the original exception text.
+- Restore .NET parent frames after inner-exception boundaries, including nested causes with inline headers.
+- Cover every cause's editor location and full-period export with shared runtime fixtures and explicit-origin regressions.
+
+## 0.15.0
+
+- Parse JVM, Python, V8 JavaScript/TypeScript, Go, Ruby, .NET and Rust text stack frames, alongside PHP; retain raw text and normalize exception causes.
+- Add an ECS object/dotted-field schema adapter with full-period CSV/JSON restoration and immutable log documents with a single cached exception-chain decode.
+- Share operation-specific keys across Settings effects and Sources/index reuse; labels and Web URLs no longer invalidate results during paging.
+- Use one connection/credential transaction from Settings and Explorer, including obsolete-key cleanup and rollback on concurrent Settings changes.
+- Extract stream request ownership and cross-operation coordination into Kotlin controllers.
+- Replace private UI-field reflection with semantic component names, read-only view snapshots and actual actions/table models.
+
+
 ## 0.14.0 — 2026-11-17
 
 - Move submitted search, cancellation, paging and exception-example display into a Kotlin SearchController; retain the last successful page on failure.

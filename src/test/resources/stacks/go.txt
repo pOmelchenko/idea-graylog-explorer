@@ -1,0 +1,7 @@
+panic: invalid state
+
+goroutine 1 [running]:
+main.run()
+    /srv/app/main.go:42 +0x12
+main.main()
+    /srv/app/cmd/main.go:8 +0x5

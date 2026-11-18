@@ -4,13 +4,8 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public record SourceLocation(String path, int line) {
-    private static final Pattern TRACE = Pattern.compile(
-            "((?:[A-Za-z]:)?[/\\\\][^\\r\\n\"'<>]*?\\.(?:php|phtml|js|ts|java|kt|py|go|rb)|(?:[\\w.-]+[/\\\\])+[\\w.-]+\\.(?:php|phtml|js|ts|java|kt|py|go|rb))(?::|\\()(\\d+)\\)?");
-
     public static List<SourceLocation> find(LogEvent event) {
         LinkedHashSet<SourceLocation> result = new LinkedHashSet<>();
         String file = event.first("file", "file_name", "filename", "exception_file");
@@ -26,17 +21,7 @@ public record SourceLocation(String path, int line) {
         return List.copyOf(new LinkedHashSet<>(parseFrames(trace)));
     }
 
-    static List<SourceLocation> parseFrames(String trace) {
-        java.util.ArrayList<SourceLocation> result = new java.util.ArrayList<>();
-        Matcher matcher = TRACE.matcher(trace);
-        while (matcher.find()) {
-            try {
-                int number = Integer.parseInt(matcher.group(2));
-                if (number > 0) result.add(new SourceLocation(matcher.group(1).trim(), number));
-            } catch (NumberFormatException ignored) { }
-        }
-        return List.copyOf(result);
-    }
+    static List<SourceLocation> parseFrames(String trace) { return StackTraceParsers.frames(trace); }
 
     public Path resolve(Connection connection, Path projectRoot) {
         String source = path.replace('\\', '/');
