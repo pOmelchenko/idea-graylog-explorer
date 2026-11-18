@@ -23,26 +23,26 @@ final class ChainSmoke {
             try {
                 if (!(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING) && SmokeUi.index(panel).getResult() != null) {
                     wait.stop();
-                    String text = ((JTextArea) SmokeUi.field(SmokeUi.field(panel, "inspector"), "rawStack")).getText();
+                    String text = ((JTextArea) SmokeUi.component(panel, "inspector.rawStack")).getText();
                     if (!text.contains("Caused by: Demo\\Profile") || !text.contains("(code 723)") || text.contains("{\"")) throw new AssertionError("Yii trace is not readable: " + text);
                     GraylogApi.PeriodIndex index = (GraylogApi.PeriodIndex) SmokeUi.index(panel).getResult();
                     if (index.messages() != 1 || index.exceptions() != 1 || index.sites().size() != 3) throw new AssertionError("Yii event chain inflated or lost index counts");
-                    JButton browser = (JButton) SmokeUi.field(SmokeUi.field(panel, "inspector"), "browser");
+                    var browser = SmokeUi.command(panel, "Open Graylog");
                     if (!browser.isEnabled() || !browser.getToolTipText().contains("/messages/graylog_demo_0/yii-error")) throw new AssertionError("Selected log permalink missing");
-                    JTable events = (JTable) SmokeUi.field(panel, "events"); events.clearSelection();
+                    JTable events = (JTable) SmokeUi.component(panel, "explorer.events"); events.clearSelection();
                     if (browser.isEnabled()) throw new AssertionError("Open Graylog enabled without a selected event");
-                    if (!((JPanel) SmokeUi.field(SmokeUi.field(panel, "inspector"), "inspectorBody")).getComponent(0).isVisible()) throw new AssertionError("Empty inspector hint not shown");
+                    if (!((JPanel) SmokeUi.component(panel, "inspector.inspectorBody")).getComponent(0).isVisible()) throw new AssertionError("Empty inspector hint not shown");
                     events.setRowSelectionInterval(0, 0);
                     if (!browser.isEnabled()) throw new AssertionError("Open Graylog did not follow the new selection");
-                    if (!((JPanel) SmokeUi.field(SmokeUi.field(panel, "inspector"), "inspectorBody")).getComponent(1).isVisible()) throw new AssertionError("Event inspector not restored after selection");
-                    @SuppressWarnings("unchecked") JList<SourceLocation> locations = (JList<SourceLocation>) SmokeUi.field(SmokeUi.field(panel, "inspector"), "locations");
+                    if (!((JPanel) SmokeUi.component(panel, "inspector.inspectorBody")).getComponent(1).isVisible()) throw new AssertionError("Event inspector not restored after selection");
+                    @SuppressWarnings("unchecked") JList<SourceLocation> locations = (JList<SourceLocation>) SmokeUi.component(panel, "inspector.locations");
                     int cause = -1;
                     for (int i = 0; i < locations.getModel().getSize(); i++) {
                         SourceLocation source = locations.getModel().getElementAt(i);
                         if (source.path().endsWith("/Domain/Phone.php") && source.line() == 46) cause = i;
                     }
                     if (cause < 0) throw new AssertionError("Previous exception origin missing from source navigation");
-                    locations.setSelectedIndex(cause); ((JButton) SmokeUi.field(SmokeUi.field(panel, "inspector"), "open")).doClick();
+                    locations.setSelectedIndex(cause); SmokeUi.clickToolbar(panel, "Open in Editor");
                     long valueDeadline = System.currentTimeMillis() + 60000;
                     Timer capture = new Timer(200, tick -> {
                         try {
@@ -71,7 +71,7 @@ final class ChainSmoke {
                             if (hints.getFirst().getOffset() != editor.getDocument().getText().indexOf("$raw);", editor.getDocument().getLineStartOffset(45)) + 4) throw new AssertionError("Value is not placed at the variable token");
                             if (!editor.getInlayModel().getAfterLineEndElementsInRange(editor.getDocument().getLineStartOffset(45), editor.getDocument().getLineEndOffset(45), ExceptionInlineRenderer.class).isEmpty()) throw new AssertionError("Line fallback duplicates a resolved variable hint");
                             if (editor.getDocument().getText().contains("+12025550123")) throw new AssertionError("Logged value changed the source document");
-                            SmokeUi.captureTabs(project, (com.intellij.ui.tabs.JBTabs) SmokeUi.field(SmokeUi.field(panel, "inspector"), "inspectorTabs"), report, () -> {
+                            SmokeUi.captureTabs(project, (com.intellij.ui.tabs.JBTabs) SmokeUi.tabs(panel), report, () -> {
                                 try {
                                     Files.writeString(report.resolve("yii-result.txt"), "PASS: One Yii log event produces three exception origins; Phone.php:46 shows the exact logged phone in a temporary inline hint and gutter tooltip. Source text is unchanged. Native Fields, Stack trace and JSON tabs were captured.\n");
                                     VariableHintsSmoke.run(project, panel, report, () -> ExplorerUiSmoke.run(project, panel, report, done));

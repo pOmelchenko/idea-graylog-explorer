@@ -96,5 +96,6 @@ final class QueryCompletion implements Disposable {
         field.requestFocusInWindow();
     }
     private void close() { if (popup != null) { popup.cancel(); popup = null; } }
+    com.intellij.openapi.ui.popup.JBPopup popup() { return popup; }
     @Override public void dispose() { disposed = true; delay.stop(); close(); }
 }

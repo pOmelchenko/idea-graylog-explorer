@@ -103,7 +103,7 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
                     Timer wait = new Timer(500, null);
                     wait.addActionListener(e -> {
                         try {
-                            JTable table = (JTable) SmokeUi.field(panel, "events");
+                            JTable table = (JTable) SmokeUi.component(panel, "explorer.events");
                             if (table.getRowCount() == 100 && SmokeUi.hasToolbarAction(panel, "Open in Editor")
                                     && SmokeUi.hasToolbarAction(panel, "Code marks") && SmokeUi.hasToolbarAction(panel, "Page size")) {
                                 wait.stop();
@@ -111,9 +111,9 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
                                 for (int row = 0; row < table.getRowCount(); row++) if ("ERROR".equals(table.getValueAt(row, 1))) error = row;
                                 if (error < 0) throw new AssertionError("ERROR event missing");
                                 table.setRowSelectionInterval(error, error);
-                                JBTabs tabs = (JBTabs) SmokeUi.field(SmokeUi.field(panel, "inspector"), "inspectorTabs");
+                                JBTabs tabs = (JBTabs) SmokeUi.tabs(panel);
                                 tabs.select(tabs.getTabAt(1), false);
-                                JButton open = (JButton) SmokeUi.field(SmokeUi.field(panel, "inspector"), "open");
+                                var open = SmokeUi.command(panel, "Open in Editor");
                                 if (!open.isEnabled()) throw new AssertionError("Source navigation button disabled");
                                 SmokeUi.clickToolbar(panel, "Open in Editor");
                                 long editorDeadline = System.currentTimeMillis() + 45000;
@@ -130,7 +130,7 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
                                 });
                                 editorWait.start();
                             } else if (System.currentTimeMillis() > deadline) {
-                                wait.stop(); throw new AssertionError("No search results: " + ((javax.swing.JLabel) SmokeUi.field(panel, "status")).getText());
+                                wait.stop(); throw new AssertionError("No search results: " + ((javax.swing.JLabel) SmokeUi.component(panel, "explorer.status")).getText());
                             }
                         } catch (Throwable failure) { wait.stop(); fail(report, failure); }
                     });
@@ -147,7 +147,7 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
                 throw new AssertionError("Source navigation did not open line 87; actual=" +
                         (editor == null ? "editor not loaded" : editor.getCaretModel().getLogicalPosition().line));
             }
-            JTable currentTable = (JTable) SmokeUi.field(panel, "events");
+            JTable currentTable = (JTable) SmokeUi.component(panel, "explorer.events");
             for (int row = 0; row < currentTable.getRowCount(); row++) {
                 if (currentTable.getValueAt(row, 3).equals("Inventory request timed out")) currentTable.setRowSelectionInterval(row, row);
             }
@@ -159,14 +159,14 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
             if (index.messages() != 128 || index.exceptions() != 3 || index.sites().size() != 5 || markerAt(editor, 102) == null) {
                 throw new AssertionError("Exception outside the first table page was not indexed");
             }
-            ExceptionHighlights highlights = (ExceptionHighlights) SmokeUi.field(panel, "highlights");
+            ExceptionHighlights highlights = (ExceptionHighlights) panel.decorations();
             if (hintAt(editor, 86) == null || !hintAt(editor, 86).getRenderer().text().contains("Inventory request timed out")) throw new AssertionError("Inline exception message missing");
             IdeOptions currentOptions = GraylogIdeSettings.get().getState().options;
             IdeOptions withoutHints = currentOptions.copy(); withoutHints.inlineDetails = false;
             highlights.configure(withoutHints);
             if (hintAt(editor, 86) != null || markerAt(editor, 86) == null) throw new AssertionError("Inline preference must retain gutter marks");
             highlights.configure(currentOptions); marker = markerAt(editor, 86);
-            LogEvent selected = (LogEvent) SmokeUi.field(panel, "selected");
+            LogEvent selected = (LogEvent) panel.viewState().selected();
             java.awt.Color selectedColor = marker.getTextAttributes().getBackgroundColor();
             highlights.select(null);
             if (selectedColor.equals(markerAt(editor, 86).getTextAttributes().getBackgroundColor())) {
@@ -177,19 +177,18 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
             foreignHint = editor.getInlayModel().addAfterLineEndElement(0, true, new com.intellij.openapi.editor.EditorCustomElementRenderer() {
                 @Override public int calcWidthInPixels(com.intellij.openapi.editor.Inlay inlay) { return 10; }
             });
-            JToggleButton toggle = (JToggleButton) SmokeUi.field(panel, "codeMarks");
             SmokeUi.clickToolbar(panel, "Code marks");
             if (graylogMarker(editor) != null || hintAt(editor, 86) != null || !foreign.isValid() || !foreignHint.isValid()) throw new AssertionError("Code marks toggle affected unrelated markup");
             SmokeUi.clickToolbar(panel, "Code marks");
             await(report, () -> SmokeUi.index(panel).getResult() != null && !(Boolean) (SmokeUi.index(panel).getPhase() == PeriodIndexController.Phase.LOADING), () -> {
                 if (markerAt(editor, 102) == null) throw new AssertionError("Whole-period marks did not return after enabling");
                 Object beforePaging = SmokeUi.index(panel).getResult();
-                ((JButton) SmokeUi.field(panel, "next")).doClick();
+                SmokeUi.clickToolbar(panel, "Next");
                 await(report, () -> !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && ((SearchRequest) SmokeUi.loadedRequest(panel)).offset() == 100, () -> {
                     if (SmokeUi.index(panel).getResult() != beforePaging || markerAt(editor, 102) == null) {
                         throw new AssertionError("Table paging replaced the period index");
                     }
-                    ((JButton) SmokeUi.field(panel, "previous")).doClick();
+                    SmokeUi.clickToolbar(panel, "Previous");
                     await(report, () -> !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && ((SearchRequest) SmokeUi.loadedRequest(panel)).offset() == 0, () -> {
                         if (SmokeUi.index(panel).getResult() != beforePaging) throw new AssertionError("Returning to the first page restarted the period scan");
                         verifyFilters(project, panel, report, editor, foreign, beforePaging);
@@ -202,20 +201,20 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
     private void clickOlderException(Project project, GraylogPanel panel, Path report, Editor editor, RangeHighlighter foreign) throws Exception {
         var action = markerAt(editor, 102).getGutterIconRenderer().getClickAction();
         action.actionPerformed(AnActionEvent.createFromAnAction(action, null, "GraylogSmoke", DataContext.EMPTY_CONTEXT));
-        await(report, () -> ((JTable) SmokeUi.field(panel, "events")).getRowCount() == 1, () -> {
-            JTable table = (JTable) SmokeUi.field(panel, "events");
+        await(report, () -> ((JTable) SmokeUi.component(panel, "explorer.events")).getRowCount() == 1, () -> {
+            JTable table = (JTable) SmokeUi.component(panel, "explorer.events");
             if (!table.getValueAt(0, 3).toString().equals("Older reservation failed")) {
                 throw new AssertionError("Gutter did not show the exception absent from the first page");
             }
-            JButton browser = (JButton) SmokeUi.field(SmokeUi.field(panel, "inspector"), "browser");
+            var browser = SmokeUi.command(panel, "Open Graylog");
             if (!browser.isEnabled() || !browser.getToolTipText().contains("/search?")
                     || !browser.getToolTipText().contains("older-119")) {
                 throw new AssertionError("CSV example without an index does not open an ID-specific search");
             }
-            ((JButton) SmokeUi.field(panel, "allEvents")).doClick();
+            SmokeUi.clickToolbar(panel, "All loaded events");
             if (table.getRowCount() != 100) throw new AssertionError("Original table page was not restored");
             for (int i = 0; i < table.getRowCount(); i++) if (table.getValueAt(i, 3).equals("Inventory request timed out")) table.setRowSelectionInterval(i, i);
-            ((JButton) SmokeUi.field(SmokeUi.field(panel, "inspector"), "open")).doClick();
+            SmokeUi.clickToolbar(panel, "Open in Editor");
             var source = FileDocumentManager.getInstance().getFile(editor.getDocument());
             if (source != null) FileEditorManager.getInstance(project).openFile(source, true);
             editor.getScrollingModel().disableAnimation(); editor.getScrollingModel().scrollToCaret(ScrollType.CENTER);
@@ -249,8 +248,8 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
 
     private void verifyFilters(Project project, GraylogPanel panel, Path report, Editor editor, RangeHighlighter foreign, Object index) throws Exception {
         Object loaded = SmokeUi.loadedRequest(panel);
-        javax.swing.JTextField filter = (javax.swing.JTextField) SmokeUi.field(SmokeUi.field(panel, "connections"), "connectionFilter");
-        javax.swing.JTree tree = (javax.swing.JTree) SmokeUi.field(SmokeUi.field(panel, "connections"), "tree");
+        javax.swing.JTextField filter = (javax.swing.JTextField) SmokeUi.component(panel, "connections.filter");
+        javax.swing.JTree tree = (javax.swing.JTree) SmokeUi.component(panel, "connections.tree");
         filter.setText("inventory");
         var root = (javax.swing.tree.DefaultMutableTreeNode) tree.getModel().getRoot();
         java.util.Set<String> names = new java.util.HashSet<>();
@@ -264,7 +263,7 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
         if (tree.getSelectionPath() == null || !tree.getLastSelectedPathComponent().toString().equals("All messages")) throw new AssertionError("Clearing sidebar search lost the active stream");
         SmokeUi.chooseDropdown(panel, "Page size", "250");
         await(report, () -> !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && ((SearchRequest) SmokeUi.loadedRequest(panel)).limit() == 250, () -> {
-            if (((JTable) SmokeUi.field(panel, "events")).getRowCount() != 128 || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Native page-size filter changed the period index or lost events");
+            if (((JTable) SmokeUi.component(panel, "explorer.events")).getRowCount() != 128 || SmokeUi.index(panel).getResult() != index) throw new AssertionError("Native page-size filter changed the period index or lost events");
             SmokeUi.chooseDropdown(panel, "Page size", "100");
             await(report, () -> !(SmokeUi.search(panel).getPhase() == SearchController.Phase.LOADING) && ((SearchRequest) SmokeUi.loadedRequest(panel)).limit() == 100, () -> {
                 if (SmokeUi.index(panel).getResult() != index) throw new AssertionError("Restoring page size rebuilt the index");

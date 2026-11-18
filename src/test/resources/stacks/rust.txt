@@ -1,0 +1,7 @@
+thread 'main' (123) panicked at src/main.rs:2:5:
+crash and burn
+stack backtrace:
+   0: core::panicking::panic_fmt
+             at /rustc/library/core/src/panicking.rs:75:14
+   1: app::main
+             at ./src/main.rs:2:5

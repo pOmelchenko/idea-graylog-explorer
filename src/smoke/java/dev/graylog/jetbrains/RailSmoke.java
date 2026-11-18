@@ -17,8 +17,8 @@ final class RailSmoke {
     static void run(Project project, GraylogPanel panel, Path report, Runnable done) {
         try {
             Object loaded = SmokeUi.loadedRequest(panel), index = SmokeUi.index(panel).getResult();
-            JTree tree = (JTree) SmokeUi.field(SmokeUi.field(panel, "connections"), "tree");
-            JTextField query = (JTextField) SmokeUi.field(panel, "query"); String text = query.getText();
+            JTree tree = (JTree) SmokeUi.component(panel, "connections.tree");
+            JTextField query = (JTextField) SmokeUi.component(panel, "explorer.query"); String text = query.getText();
             int expandedRows = tree.getRowCount();
             SmokeUi.clickToolbar(panel, "Collapse all connections");
             if (tree.getRowCount() >= expandedRows) throw new AssertionError("Collapse all did not collapse the navigation tree");
@@ -32,12 +32,12 @@ final class RailSmoke {
             reference.setTargetComponent(panel);
             if (actual == null || !actual.getMinimumButtonSize().equals(reference.getMinimumButtonSize())
                     || !actual.getComponent().getInsets().equals(reference.getComponent().getInsets())) throw new AssertionError("Rail overrides native Git toolbar sizing/insets");
-            Component navigation = (Component) SmokeUi.field(panel, "connections");
+            Component navigation = (Component) SmokeUi.component(panel, "explorer.connections");
             Point origin = panel.getLocationOnScreen();
             Rectangle bounds = new Rectangle(origin.x, origin.y - JBUI.scale(32), navigation.getX() + actual.getComponent().getWidth() + navigation.getWidth(), panel.getHeight() + JBUI.scale(32));
             ImageIO.write(new Robot().createScreenCapture(bounds), "png", report.resolve("navigation-expanded.png").toFile());
             SmokeUi.clickToolbar(panel, "Show/hide connections");
-            OnePixelSplitter splitter = (OnePixelSplitter) SmokeUi.field(panel, "navigationSplitter");
+            OnePixelSplitter splitter = (OnePixelSplitter) SmokeUi.component(panel, "explorer.navigationSplitter");
             if (splitter.getFirstComponent() != null || PropertiesComponent.getInstance(project).getBoolean("graylog.explorer.connections.visible", true)) throw new AssertionError("Sidebar hiding did not update the layout and saved preference");
             later(report, () -> {
                 ImageIO.write(new Robot().createScreenCapture(new Rectangle(0, 0, 1780, 1060)), "png", report.resolve("navigation-collapsed.png").toFile());

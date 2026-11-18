@@ -14,9 +14,9 @@ final class ConnectionDialogSmoke {
     static void run(Project project, Path report) throws Exception {
         ConnectionDialog fresh = new ConnectionDialog(project, null);
         try {
-            JTextField name = (JTextField) SmokeUi.field(fresh, "name");
-            JTextField api = (JTextField) SmokeUi.field(fresh, "api");
-            JPasswordField token = (JPasswordField) SmokeUi.field(fresh, "token");
+            JTextField name = (JTextField) SmokeUi.component(fresh.getContentPane(), "connection.name");
+            JTextField api = (JTextField) SmokeUi.component(fresh.getContentPane(), "connection.api");
+            JPasswordField token = (JPasswordField) SmokeUi.component(fresh.getContentPane(), "connection.token");
             check(validate(fresh) != null, "Missing name rejected");
             name.setText("Fixture"); api.setText("invalid-url");
             check(validate(fresh) != null, "Invalid API URL rejected");
@@ -42,14 +42,13 @@ final class ConnectionDialogSmoke {
         ConnectionDialog edit = new ConnectionDialog(project, existing);
         try {
             check(validate(edit) == null, "Existing connection can keep its stored token");
-            ((JTextField) SmokeUi.field(edit, "name")).setText("Edited fixture");
+            ((JTextField) SmokeUi.component(edit.getContentPane(), "connection.name")).setText("Edited fixture");
             check("Edited fixture".equals(edit.connection().name) && "Existing fixture".equals(existing.name), "Editing does not mutate the original connection");
         } finally { edit.close(com.intellij.openapi.ui.DialogWrapper.CANCEL_EXIT_CODE); }
         java.nio.file.Files.writeString(report.resolve("connection-dialog-result.txt"), "PASS: Kotlin dialog validation, URL normalization, copy editing and token clearing on read/cancel.\n");
     }
     private static ValidationInfo validate(ConnectionDialog dialog) throws Exception {
-        var method = dialog.getClass().getDeclaredMethod("doValidate"); method.setAccessible(true);
-        return (ValidationInfo) method.invoke(dialog);
+        return dialog.doValidate();
     }
     private static void check(boolean condition, String label) { if (!condition) throw new AssertionError(label); }
 }

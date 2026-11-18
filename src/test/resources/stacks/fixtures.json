@@ -1,0 +1,185 @@
+[
+  {
+    "name": "php",
+    "frames": [
+      {
+        "path": "/srv/app/src/Phone.php",
+        "line": 46
+      },
+      {
+        "path": "/srv/app/src/Controller.php",
+        "line": 21
+      }
+    ],
+    "types": [
+      "RuntimeException"
+    ],
+    "origins": [
+      46
+    ]
+  },
+  {
+    "name": "jvm",
+    "frames": [
+      {
+        "path": "app/Service.java",
+        "line": 42
+      },
+      {
+        "path": "app/Worker.java",
+        "line": 18
+      }
+    ],
+    "types": [
+      "java.lang.IllegalStateException",
+      "java.io.IOException"
+    ],
+    "origins": [
+      42,
+      18
+    ]
+  },
+  {
+    "name": "kotlin",
+    "frames": [
+      {
+        "path": "app/jobs/Worker.kt",
+        "line": 27
+      },
+      {
+        "path": "app/Main.kt",
+        "line": 8
+      }
+    ],
+    "types": [
+      "java.lang.IllegalArgumentException"
+    ],
+    "origins": [
+      27
+    ]
+  },
+  {
+    "name": "python",
+    "frames": [
+      {
+        "path": "/srv/app/main.py",
+        "line": 12
+      },
+      {
+        "path": "/srv/app/user.py",
+        "line": 43
+      },
+      {
+        "path": "/srv/app/main.py",
+        "line": 15
+      }
+    ],
+    "types": [
+      "RuntimeError",
+      "ValueError"
+    ],
+    "origins": [
+      15,
+      43
+    ]
+  },
+  {
+    "name": "node",
+    "frames": [
+      {
+        "path": "/srv/app/dist/main.js",
+        "line": 42
+      },
+      {
+        "path": "/srv/app/src/worker.ts",
+        "line": 12
+      }
+    ],
+    "types": [
+      "TypeError"
+    ],
+    "origins": [
+      42
+    ]
+  },
+  {
+    "name": "go",
+    "frames": [
+      {
+        "path": "/srv/app/main.go",
+        "line": 42
+      },
+      {
+        "path": "/srv/app/cmd/main.go",
+        "line": 8
+      }
+    ],
+    "types": [
+      "panic"
+    ],
+    "origins": [
+      42
+    ]
+  },
+  {
+    "name": "ruby",
+    "frames": [
+      {
+        "path": "/srv/app/job.rb",
+        "line": 31
+      },
+      {
+        "path": "/srv/app/main.rb",
+        "line": 9
+      }
+    ],
+    "types": [
+      "RuntimeError"
+    ],
+    "origins": [
+      31
+    ]
+  },
+  {
+    "name": "dotnet",
+    "frames": [
+      {
+        "path": "C:\\app\\Service.cs",
+        "line": 42
+      },
+      {
+        "path": "C:\\app\\Program.cs",
+        "line": 8
+      }
+    ],
+    "types": [
+      "System.InvalidOperationException"
+    ],
+    "origins": [
+      42
+    ]
+  },
+  {
+    "name": "rust",
+    "frames": [
+      {
+        "path": "src/main.rs",
+        "line": 2
+      },
+      {
+        "path": "/rustc/library/core/src/panicking.rs",
+        "line": 75
+      },
+      {
+        "path": "./src/main.rs",
+        "line": 2
+      }
+    ],
+    "types": [
+      "panic"
+    ],
+    "origins": [
+      2
+    ]
+  }
+]

@@ -232,9 +232,9 @@ public final class GraylogClient implements GraylogApi {
         String exception = event.text("exception").stripLeading();
         if (exception.startsWith("{") || exception.startsWith("[")) return true;
         for (String field : format.aliases().values()) if (field.contains(".")) {
-            JsonElement exact = event.fields().get(field);
+            JsonElement exact = event.rawElement(field);
             if (exact != null && !exact.isJsonNull() && !(exact.isJsonPrimitive() && exact.getAsString().isEmpty())) continue;
-            JsonElement root = event.fields().get(field.substring(0, field.indexOf('.')));
+            JsonElement root = event.rawElement(field.substring(0, field.indexOf('.')));
             if (root != null && root.isJsonPrimitive()) {
                 String value = root.getAsString().stripLeading();
                 if (value.startsWith("{") || value.startsWith("[")) return true;
@@ -288,7 +288,7 @@ public final class GraylogClient implements GraylogApi {
             if (!wrapper.has("message") || !wrapper.get("message").isJsonObject()) {
                 throw new IOException("Unexpected message fields in search response.");
             }
-            JsonObject fields = wrapper.getAsJsonObject("message").deepCopy();
+            JsonObject fields = wrapper.getAsJsonObject("message");
             String index = optionalString(wrapper, "index");
             String id = optionalString(fields, "_id");
             if (id.isEmpty()) id = optionalString(wrapper, "id");

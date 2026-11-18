@@ -86,6 +86,16 @@ The PHP adapter supports a conservative pattern: an exact exception class and so
 
 Control hints under **Settings → Tools → Graylog Explorer → Highlighting**, or disable **Code marks** in the tool window. Cancel or refresh the full-period scan from the status bar.
 
+## Language and log-format support
+
+Log exploration is independent of the service language. Structured exception objects/JSON strings (including Yii `ctxt_exception`) and ECS `error` objects normalize to a common exception model. Field aliases remain configurable per project/connection.
+
+Text stack frames recognize PHP, JVM (Java/Kotlin), Python tracebacks, V8 JavaScript/TypeScript, Go, Ruby, .NET and Rust paths. Python cause order and JVM cause headers are normalized for source marks; the Exception text tab retains the complete original text, including native/elided frames. Source mappings and root-confinement checks apply to every language.
+
+JVM frames infer package-relative source paths from the qualified class and the recorded filename. Set the local mapping root to the source directory (for example `src/main/java` or `src/main/kotlin`). The plugin does not guess by basename or search classes through language PSI. Native/unknown-source frames and virtual `node:`/`webpack:`/HTTP URLs remain text. Columns, source maps, Python exception groups and reconstruction of JVM elided frames are not implemented. Source revision matching remains the user's responsibility.
+
+Historical variable values still use the optional, conservative PHP adapter; adding stack parsing does not add variable analysis for another language. Parsers require no optional language plugin. See the [portability review](docs/portability-2026-11-18.md) and [synthetic fixtures](src/test/resources/stacks).
+
 ## Build and test
 
 The mixed Java/Kotlin build uses Gradle, JDK **25** and a pinned downloadable PhpStorm SDK:

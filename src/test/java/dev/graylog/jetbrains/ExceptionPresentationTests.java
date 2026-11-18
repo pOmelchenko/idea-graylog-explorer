@@ -40,12 +40,12 @@ final class ExceptionPresentationTests {
         LogEvent legacy = new LogEvent("legacy", "", simple);
         var legacySite = CoreTests.sites(List.of(legacy), connection, root).getFirst();
         eq(List.of("value=bad next line"), ExceptionPresentation.messages(legacySite, connection, root, legacy));
-        simple.addProperty("message", "🙂".repeat(600));
+        simple.addProperty("message", "🙂".repeat(600)); legacy = new LogEvent("legacy", "", simple);
         var longSite = CoreTests.sites(List.of(legacy), connection, root).getFirst();
         var messages = ExceptionPresentation.messages(longSite, connection, root, legacy);
         eq(501, messages.getFirst().codePointCount(0, messages.getFirst().length()));
         eq("Graylog: " + "🙂".repeat(160) + "…", ExceptionPresentation.inline(longSite, messages));
-        simple.addProperty("message", "Error");
+        simple.addProperty("message", "Error"); legacy = new LogEvent("legacy", "", simple); longSite = CoreTests.sites(List.of(legacy), connection, root).getFirst();
         eq(List.of(), ExceptionPresentation.messages(longSite, connection, root, legacy));
         eq("", ExceptionPresentation.inline(longSite, List.of())); return assertions;
     }

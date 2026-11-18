@@ -1,0 +1,3 @@
+System.InvalidOperationException: failure
+   at App.Service.Run() in C:\app\Service.cs:line 42
+   at App.Program.Main() in C:\app\Program.cs:line 8

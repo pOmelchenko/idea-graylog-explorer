@@ -79,10 +79,11 @@ final class SettingsTests {
         eq(17, SourceLocation.find(event).getFirst().line());
         check(format.exportFields().containsAll(List.of("ctx.rid", "ctx", "err.kind", "err", "details")), "Export includes nested roots for lossless JSON hydration");
         check(!event.fields().has("request_id"), "Configured lookup leaves original JSON untouched");
-        data.addProperty("ctx.rid", "literal-dot-field"); eq("literal-dot-field", event.text("request_id"));
+        data.addProperty("ctx.rid", "literal-dot-field"); event = new LogEvent("id", "index", data, format); eq("literal-dot-field", event.text("request_id"));
         data.remove("ctx.rid"); data.remove("ctx"); data.addProperty("request_id", "legacy");
+        event = new LogEvent("id", "index", data, format);
         eq("legacy", event.text("request_id")); eq("request_id", event.fieldName("request_id"));
-        data.add("ctx", JsonParser.parseString("{\"rid\":null}")); eq("request_id", event.fieldName("request_id"));
+        data.add("ctx", JsonParser.parseString("{\"rid\":null}")); event = new LogEvent("id", "index", data, format); eq("request_id", event.fieldName("request_id"));
         c = new Connection(); c.localRoot = "/work";
         ExceptionSites.Accumulator accumulator = new ExceptionSites.Accumulator(c, Path.of("/work"), 3);
         for (int i = 0; i < 25; i++) accumulator.accept(new LogEvent("id-" + i, "index", data, format));

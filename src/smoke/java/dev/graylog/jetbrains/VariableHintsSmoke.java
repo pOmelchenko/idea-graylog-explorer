@@ -62,8 +62,8 @@ final class VariableHintsSmoke {
         }
         if (editor == null) throw new AssertionError("Phone editor missing");
         final Editor target = editor;
-        ExceptionHighlights highlights = (ExceptionHighlights) SmokeUi.field(panel, "highlights");
-        LogEvent original = (LogEvent) SmokeUi.field(panel, "selected");
+        ExceptionHighlights highlights = (ExceptionHighlights) panel.decorations();
+        LogEvent original = (LogEvent) panel.viewState().selected();
         var fields = original.fields().deepCopy();
         var chain = JsonParser.parseString(fields.get("ctxt_exception").getAsString()).getAsJsonObject();
         chain.getAsJsonObject("previous").getAsJsonObject("previous").addProperty("message", "Invalid phone: +12025550124");

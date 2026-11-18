@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.0
+
+- Parse JVM, Python, V8 JavaScript/TypeScript, Go, Ruby, .NET and Rust text stack frames, alongside PHP; retain raw text and normalize exception causes.
+- Add an ECS error-object schema adapter and immutable log documents with a single cached exception-chain decode.
+- Share operation-specific keys across Settings effects and Sources/index reuse; labels and Web URLs no longer invalidate results during paging.
+- Use one connection/credential transaction from Settings and Explorer, including obsolete-key cleanup and rollback on concurrent Settings changes.
+- Extract stream request ownership and cross-operation coordination into Kotlin controllers.
+- Replace private UI-field reflection with semantic component names, read-only view snapshots and actual actions/table models.
+
+
 ## 0.14.0 — 2026-11-17
 
 - Move submitted search, cancellation, paging and exception-example display into a Kotlin SearchController; retain the last successful page on failure.

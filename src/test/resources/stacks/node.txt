@@ -1,0 +1,4 @@
+TypeError: bad value
+    at run (/srv/app/dist/main.js:42:10)
+    at async next (/srv/app/src/worker.ts:12:2)
+    at node:internal/process/task_queues:95:5

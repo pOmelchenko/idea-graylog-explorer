@@ -7,8 +7,24 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.List;
 
-public record LogEvent(String id, String index, JsonObject fields, LogFormat format) {
+public final class LogEvent {
+    private final String id, index;
+    private final JsonObject fields;
+    private final LogFormat format;
+    private final ExceptionDecoders.Decoded decoded;
+    public LogEvent(String id, String index, JsonObject fields, LogFormat format) {
+        this.id = id; this.index = index; this.fields = fields.deepCopy(); this.format = format.copy();
+        decoded = ExceptionDecoders.decode(this);
+    }
+    public String id() { return id; }
+    public String index() { return index; }
+    public JsonObject fields() { return fields.deepCopy(); }
+    JsonElement rawElement(String name) { var value = fields.get(name); return value == null ? null : value.deepCopy(); }
+    public LogFormat format() { return format.copy(); }
+    List<ExceptionDetails.Part> exceptions() { return decoded.parts(); }
+
     private static final DateTimeFormatter DISPLAY_TIME = DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
     public LogEvent(String id, String index, JsonObject fields) { this(id, index, fields, new LogFormat()); }
     public JsonElement element(String key) {
@@ -17,7 +33,7 @@ public record LogEvent(String id, String index, JsonObject fields, LogFormat for
         if (value == null || value.isJsonNull()) value = lookup(key);
         if (key.equals("exception") && (value == null || value.isJsonNull()
                 || (value.isJsonPrimitive() && value.getAsString().isBlank()))) value = lookup("ctxt_exception");
-        return value;
+        return value == null ? null : value.deepCopy();
     }
     private JsonElement lookup(String key) {
         JsonElement exact = fields.get(key);
@@ -75,8 +91,7 @@ public record LogEvent(String id, String index, JsonObject fields, LogFormat for
     }
 
     public String stackTrace() {
-        var chain = ExceptionDetails.chain(this);
-        if (!chain.isEmpty()) return ExceptionDetails.render(chain);
+        if (decoded.structured() && !decoded.parts().isEmpty()) return ExceptionDetails.render(decoded.parts());
         return first("stack_trace", "stacktrace", "exception_stack_trace", "full_message", "exception", "message");
     }
 

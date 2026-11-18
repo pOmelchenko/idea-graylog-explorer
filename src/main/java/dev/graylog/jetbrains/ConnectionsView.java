@@ -81,6 +81,7 @@ final class ConnectionsView extends JPanel {
         connectionFilter.getDocument().addDocumentListener(new DocumentAdapter() {
             @Override protected void textChanged(DocumentEvent event) { refresh.run(); }
         });
+        tree.setName("connections.tree"); connectionFilter.setName("connections.filter");
         tree.setRootVisible(false); tree.setShowsRootHandles(true);
         tree.getEmptyText().setText("No matching connections or streams.");
         tree.getSelectionModel().setSelectionMode(javax.swing.tree.TreeSelectionModel.SINGLE_TREE_SELECTION);

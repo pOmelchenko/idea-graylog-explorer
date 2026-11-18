@@ -24,10 +24,17 @@
       <p>Source checkboxes and counts are also available in the active connection tree.
       The Sources popup supports native title dragging, resizing with a remembered size
       and numeric sorting by clicking Source or Messages headers.</p>
+      <p>Maps portable source paths and language-specific text stacks. JVM package paths resolve relative to the configured local source root; source maps and live runtime variable inspection are not provided.</p>
       <p>Supports access-token authentication, saved searches and configurable polling.
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.15.0</b></p>
+      <ul>
+        <li>Parse JVM, Python, JavaScript/TypeScript, Go, Ruby, .NET and Rust stack frames alongside PHP; preserve original exception text.</li>
+        <li>Decode structured and ECS exception schemas into immutable event snapshots.</li>
+        <li>Share operation identities, connection credential transactions, stream loading and Explorer coordination.</li>
+      </ul>
       <p><b>0.14.0</b></p>
       <ul>
         <li>Separate submitted search, paging and exception examples into a Kotlin controller with immutable operation settings.</li>

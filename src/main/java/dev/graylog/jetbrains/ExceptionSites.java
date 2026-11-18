@@ -15,6 +15,7 @@ public final class ExceptionSites {
     public record Location(Path file, int line) { }
     public record Detail(String type, String message) { }
     public record Site(Location location, List<String> types, List<LogEvent> events, long count) {
+        public Site { types = List.copyOf(types); events = List.copyOf(events); }
         public Site(Location location, List<String> types, List<LogEvent> events) { this(location, types, events, events.size()); }
     }
     public static final int SAMPLES_PER_SITE = 20;

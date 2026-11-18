@@ -14,6 +14,7 @@ import java.util.List;
 final class ExceptionDetails {
     private static final Gson JSON = new GsonBuilder().setStrictness(Strictness.STRICT).create();
     record Part(String type, String message, String code, SourceLocation origin, List<SourceLocation> trace) {
+        Part { trace = List.copyOf(trace); }
         List<SourceLocation> frames() {
             LinkedHashSet<SourceLocation> frames = new LinkedHashSet<>();
             if (origin != null) frames.add(origin);
@@ -22,23 +23,7 @@ final class ExceptionDetails {
     }
     private ExceptionDetails() { }
 
-    static List<Part> chain(LogEvent event) {
-        List<Part> chain = new ArrayList<>();
-        JsonObject object = object(event.element("exception"));
-        // Serialized data cannot have reference cycles; cap unusually deep payloads as well.
-        for (int depth = 0; object != null && depth < 64; depth++) {
-            String type = value(object, "class", "type", "exception_class");
-            if (type.isBlank() && depth == 0) type = event.first("exception_class", "exception_type", "exceptionClass", "error_type", "error.type");
-            if (type.isBlank()) type = "Exception";
-            String message = value(object, "message"), code = value(object, "code");
-            SourceLocation origin = location(object);
-            List<SourceLocation> trace = trace(object);
-            chain.add(new Part(type, message, code, origin, trace));
-            JsonObject previous = object(object.get("previous"));
-            object = previous == null ? object(object.get("cause")) : previous;
-        }
-        return List.copyOf(chain);
-    }
+    static List<Part> chain(LogEvent event) { return event.exceptions(); }
 
     static JsonObject object(JsonElement element) {
         // Both native JSON objects and JSON strings occur in GELF / Yii log targets.
@@ -79,7 +64,7 @@ final class ExceptionDetails {
         }
         return combined.isEmpty() ? null : combined.getFirst();
     }
-    private static List<SourceLocation> trace(JsonObject object) {
+    static List<SourceLocation> trace(JsonObject object) {
         List<SourceLocation> frames = new ArrayList<>();
         for (String key : List.of("trace", "stack_trace", "stacktrace")) {
             JsonElement trace = object.get(key);
@@ -94,7 +79,7 @@ final class ExceptionDetails {
         }
         return List.copyOf(frames);
     }
-    private static String value(JsonObject object, String... keys) {
+    static String value(JsonObject object, String... keys) {
         for (String key : keys) {
             JsonElement value = object.get(key);
             if (value != null && value.isJsonPrimitive() && !value.getAsString().isBlank()) return value.getAsString();

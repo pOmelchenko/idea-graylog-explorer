@@ -1,0 +1,2 @@
+/srv/app/job.rb:31:in `run': failed (RuntimeError)
+    from /srv/app/main.rb:9:in `<main>'

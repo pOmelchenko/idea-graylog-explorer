@@ -33,6 +33,16 @@ public final class GraylogIdeSettings implements PersistentStateComponent<Graylo
     public static GraylogIdeSettings get() { return ApplicationManager.getApplication().getService(GraylogIdeSettings.class); }
     @Override public synchronized @org.jetbrains.annotations.NotNull Data getState() { return data.copy(); }
     @Override public synchronized void loadState(Data state) { data = state.copy(); }
+    void compareAndReplace(Data expected, Data state) {
+        state.validate(); Data before, after;
+        synchronized (this) {
+            if (!SettingsValues.same(data, expected)) throw new ConnectionUpdates.Conflict("Graylog IDE settings changed while saving credentials. Reopen Settings before applying your changes.");
+            before = data.copy();
+            for (var old : data.connections) if (state.connections.stream().noneMatch(c -> c.id.equals(old.id)) && !state.removedConnections.contains(old.id)) state.removedConnections.add(old.id);
+            data = state.copy(); after = data.copy();
+        }
+        SettingsEvents.ide(SettingsChange.ide(before, after));
+    }
     public void replace(Data state) {
         state.validate(); Data before, after;
         synchronized (this) {

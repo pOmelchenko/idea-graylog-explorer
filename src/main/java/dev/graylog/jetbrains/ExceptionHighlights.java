@@ -119,6 +119,7 @@ final class ExceptionHighlights implements Disposable {
     void setEnabled(boolean value) { if (enabled != value) { enabled = value; refreshAll(); } }
     void configure(IdeOptions value) { Style before = style(); options = value.copy(); if (!before.equals(style())) refreshAll(); }
     void clear() { sites.clear(); byFile.clear(); selectedEvent = null; selectedLocations = Set.of(); focus = null; refreshAll(); }
+    String context() { return context; }
     RefreshStats stats() { return stats; }
     List<RangeHighlighter> markers(Editor editor) {
         return owned.getOrDefault(editor, Map.of()).values().stream().map(Decoration::marker).toList();

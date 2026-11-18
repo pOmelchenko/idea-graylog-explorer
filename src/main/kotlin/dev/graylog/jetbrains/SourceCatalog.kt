@@ -16,11 +16,11 @@ class SourceCatalog(
         val error: String = "",
         val summary: String = "Loading sources…",
     )
-    private data class Cache(val context: OperationConfig, val scope: SearchRequest, val result: GraylogApi.Sources, val created: Long)
+    private data class Cache(val context: OperationKeys.Sources, val scope: SearchRequest, val result: GraylogApi.Sources, val created: Long)
     private var current = State()
     private var cache: Cache? = null
     private var scope: SearchRequest? = null
-    private var context: OperationConfig? = null
+    private var context: OperationKeys.Sources? = null
     private var fallback = emptyList<LogEvent>()
     private var future: Future<*>? = null
     private var generation = 0L
@@ -31,7 +31,7 @@ class SourceCatalog(
     fun load(config: OperationConfig, request: SearchRequest, page: List<LogEvent>, force: Boolean) {
         if (closed) return
         fallback = page.toList()
-        val key = config
+        val key = OperationKeys.sources(config)
         if (!force && current.loading && context == key && request.sameScope(scope)) return
         val cached = cache
         if (!force && cached != null && cached.context == key && request.sameScope(cached.scope) && clock.asLong - cached.created < 30_000) {

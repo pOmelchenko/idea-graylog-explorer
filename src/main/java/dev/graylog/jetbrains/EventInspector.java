@@ -69,11 +69,18 @@ final class EventInspector extends JPanel implements Disposable {
         super(new BorderLayout());
         this.project = project; this.onOpen = onOpen; this.onAround = onAround; this.onFollow = onFollow;
         com.intellij.openapi.util.Disposer.register(parent, this);
+        rawStack.setName("inspector.rawStack");
+        sourceMapping.setName("inspector.sourceMapping");
+        open.setName("inspector.open");
+        browser.setName("inspector.browser");
+        inspectorBody.setName("inspector.inspectorBody");
+        locations.setName("inspector.locations");
         add(createInspector(), BorderLayout.CENTER);
     }
     void show(LogEvent event, Connection connection, SearchRequest request) {
         active = connection; loadedRequest = request; showEvent(event);
     }
+    JBTabs tabs() { return inspectorTabs; }
     SourceLocation selectedLocation() { return locations.getSelectedValue(); }
     private void openSource() { onOpen.run(); }
     @Override public void dispose() { selected = null; active = null; loadedRequest = null; }
