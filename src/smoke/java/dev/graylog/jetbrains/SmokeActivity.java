@@ -85,6 +85,14 @@ public final class SmokeActivity implements StartupActivity.DumbAware {
                 try {
                     ((ToolWindowEx) window).stretchHeight(380);
                     GraylogPanel panel = (GraylogPanel) window.getContentManager().getContents()[0].getComponent();
+                    if (Boolean.getBoolean("graylog.smoke.originsOnly")) {
+                        com.intellij.openapi.project.DumbService.getInstance(project).runWhenSmart(() ->
+                            LogOriginSmoke.run(project, panel, report, () -> {
+                                try { Disposer.dispose(panel); Files.writeString(report.resolve("result.txt"), "PASS: Log-origin metadata, PHP/custom logger candidates, profile settings, guidance and direct source navigation.\n"); }
+                                catch (Throwable error) { fail(report, error); }
+                            }));
+                        return;
+                    }
                     if (Boolean.getBoolean("graylog.smoke.sourcesOnly")) {
                         com.intellij.openapi.project.DumbService.getInstance(project).runWhenSmart(() -> {
                             Timer settled = new Timer(2000, e -> {

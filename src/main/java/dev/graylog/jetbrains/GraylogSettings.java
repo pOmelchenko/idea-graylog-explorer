@@ -101,6 +101,7 @@ public final class GraylogSettings implements PersistentStateComponent<GraylogSe
             Connection connection = server.connection();
             connection.mappings = new ArrayList<>(profile.mappings.stream().map(PathMapping::copy).toList());
             connection.fields = profile.fields.copy(); connection.serviceField = profile.fields.serviceField;
+            connection.navigation = profile.navigation.copy();
             if (!profile.mappings.isEmpty()) {
                 connection.remoteRoot = profile.mappings.getFirst().remoteRoot; connection.localRoot = profile.mappings.getFirst().localRoot;
             }

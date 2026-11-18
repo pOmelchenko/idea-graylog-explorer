@@ -30,3 +30,5 @@ Use conventional commit messages such as `fix: preserve source filter when pagin
 Contributions are submitted under the project's [MIT license](LICENSE).
 
 A fresh EAP SDK may show the JetBrains user agreement before opening the test project. Accept it only with the repository owner’s authorization; a timeout on that screen is not a successful UI run. The runner accepts only an explicitly supplied exact version (`--accept-eap-agreement 3.1`) and writes it to isolated Java preferences. The repository owner authorized that version for CI; a different bundled version fails before recording acceptance.
+
+For SDKs showing the standard user agreement, `--accept-user-agreement 2.0` follows the same exact-document/version checks and isolation. The owner authorized version 2.0 for isolated local tests. These flags do not authorize a different version or a general acceptance in the user's IDE.

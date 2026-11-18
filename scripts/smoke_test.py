@@ -34,9 +34,11 @@ def main():
     parser.add_argument("--values-only", action="store_true")
     parser.add_argument("--bands-only", action="store_true", help="Check native table renderer segments and capture a synthetic table only")
     parser.add_argument("--sources-only", action="store_true")
+    parser.add_argument("--origins-only", action="store_true", help="Check logger-source navigation, PHP candidates and consumer-defined behavior profiles")
     parser.add_argument("--with-legacy-prototype", action="store_true", help="Keep a disabled prototype installed to check migration conflicts")
     parser.add_argument("--reload", action="store_true", help="Exercise dynamic unload/update from a separate controller plugin")
     parser.add_argument("--accept-eap-agreement", metavar="VERSION", help="Accept exactly this bundled EAP agreement version in isolated preferences; requires owner authorization")
+    parser.add_argument("--accept-user-agreement", metavar="VERSION", help="Accept exactly this bundled standard user agreement in isolated preferences; requires owner authorization")
     args = parser.parse_args()
     ide = find_ide(args.ide_home)
     if not shutil.which("Xvfb"):
@@ -81,24 +83,26 @@ def main():
     subprocess.run([java_bin(ide, "javac"), "--release", "21", "-proc:none", "-classpath", classpath,
                     "-d", str(classes), *map(str, sources)], check=True)
     preference_option = []
-    if args.accept_eap_agreement:
+    for authorized_version, document_name, receipt in [(args.accept_eap_agreement, "euaEap", "accepted-eap-agreement.txt"), (args.accept_user_agreement, "eua", "accepted-user-agreement.txt")]:
+        if not authorized_version:
+            continue
         documents = []
         for jar in jars:
             if not jar.is_file():
                 continue
             with zipfile.ZipFile(jar) as archive:
-                if "euaEap.html" in archive.namelist():
-                    documents.append(archive.read("euaEap.html"))
+                if document_name + ".html" in archive.namelist():
+                    documents.append(archive.read(document_name + ".html"))
         if len(documents) != 1:
-            raise SystemExit("Expected one bundled EAP agreement; acceptance was not recorded.")
+            raise SystemExit(f"Expected one bundled {document_name} agreement; acceptance was not recorded.")
         document = documents[0]
         match = re.search(rb"<!--\s*([0-9]+\.[0-9]+)\s*-->", document)
         agreement_version = match.group(1).decode() if match else None
-        if agreement_version != args.accept_eap_agreement:
-            raise SystemExit(f"Bundled EAP agreement is {agreement_version}, authorized version is {args.accept_eap_agreement}; review the new terms first.")
+        if agreement_version != authorized_version:
+            raise SystemExit(f"Bundled {document_name} agreement is {agreement_version}, authorized version is {authorized_version}; review the new terms first.")
         preference_option = [f"-Djava.util.prefs.userRoot={workspace / 'preferences'}"]
-        subprocess.run([java_bin(ide, "java"), *preference_option, "-classpath", str(classes), "AcceptEapAgreement", agreement_version], check=True)
-        (report / "accepted-eap-agreement.txt").write_text(f"Explicitly authorized EAP agreement: {agreement_version}\nSHA256: {hashlib.sha256(document).hexdigest()}\nPreferences are isolated in the smoke workspace.\n")
+        subprocess.run([java_bin(ide, "java"), *preference_option, "-classpath", str(classes) + os.pathsep + classpath, "AcceptUserAgreement", document_name, agreement_version], check=True)
+        (report / receipt).write_text(f"Explicitly authorized {document_name} agreement: {agreement_version}\nSHA256: {hashlib.sha256(document).hexdigest()}\nPreferences are isolated in the smoke workspace.\n")
     lib = workspace / "plugins/graylog-jetbrains/lib"
     lib.mkdir(parents=True)
     for library in libraries:
@@ -154,6 +158,7 @@ def main():
     project = workspace / "demo-project"
     (project / ".idea").mkdir(parents=True)
     (project / ".idea/.name").write_text("Graylog demo")
+    shutil.copyfile(ROOT / "src/test/resources/logging-fixture.php", project / "logging-fixture.php")
     server = None
     app = None
     display = None
@@ -173,7 +178,7 @@ def main():
         options = workspace / "smoke.vmoptions"
         options.write_text("\n".join(["-Xmx1024m" if args.reload else "-Xmx1536m", "-Dgraylog.smoke=true", f"-Dgraylog.smoke.bandsOnly={str(args.bands_only).lower()}", f"-Dgraylog.reload.plugin={workspace / 'plugins/graylog-jetbrains'}", f"-Dgraylog.reload.upgrade={workspace / 'upgrade/graylog-jetbrains'}", f"-Dgraylog.smoke.legacyInstalled={str(args.with_legacy_prototype).lower()}", f"-Dgraylog.smoke.valuesOnly={str(args.values_only).lower()}", f"-Dgraylog.smoke.sourcesOnly={str(args.sources_only).lower()}", f"-Dgraylog.smoke.api={api}",
                                     f"-Dgraylog.smoke.report={report}", f"-Dgraylog.smoke.theme={args.theme}", "-Didea.initially.ask.config=false",
-                                    "-Didea.trust.all.projects=true", "-Dide.show.tips.on.startup.default.value=false",
+                                    f"-Dgraylog.smoke.originsOnly={str(args.origins_only).lower()}", "-Didea.trust.all.projects=true", "-Dide.show.tips.on.startup.default.value=false",
                                     "-Djb.consents.confirmation.enabled=false", "-Dawt.toolkit.name=XToolkit", "-Dsplash=false", *(["-XX:SoftRefLRUPolicyMSPerMB=0"] if args.reload else []), *preference_option]) + "\n")
         import json
         info = json.loads((ide / "product-info.json").read_text())
@@ -221,6 +226,9 @@ def main():
                         return 0
                     if args.bands_only:
                         print(f"Source segments: {report / 'source-bands.png'}", flush=True)
+                        return 0
+                    if args.origins_only:
+                        print(f"Logging guidance: {report / 'logging-guidance.png'}", flush=True)
                         return 0
                     print(f"Screenshot: {report / 'ide-smoke.png'}", flush=True)
                     print(f"Yii trace: {report / 'yii-stack-trace.png'}", flush=True)

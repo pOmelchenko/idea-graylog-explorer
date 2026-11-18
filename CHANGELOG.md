@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.0
+
+- Find a log statement separately from exception navigation: use reported caller coordinates, or choose PHP logger/method candidates from category metadata. Keep message text search as a separate native Find in Files action.
+- Configure consumer field names and source-coordinate roles per project/connection; optionally recognize ECS/OpenTelemetry, disable category lookup, or supply custom PHP logger classes/methods. Local behavior changes retain search and exception-index results.
+- Add event-specific Logging guidance and a synthetic example using the current field mapping; existing formats can be mapped without adopting a plugin-specific schema.
+
 ## 0.16.2
 
 - Carry PR #3 review fixes into the Kotlin decoder: preserve explicit throw origins and correctly unwind .NET inner stacks, with the same parser/editor/export regression fixtures.

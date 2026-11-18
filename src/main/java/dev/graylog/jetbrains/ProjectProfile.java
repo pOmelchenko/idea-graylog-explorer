@@ -7,10 +7,12 @@ public final class ProjectProfile {
     public String connectionId = "";
     public List<PathMapping> mappings = new ArrayList<>(List.of(new PathMapping()));
     public LogFormat fields = new LogFormat();
+    public LogNavigationOptions navigation = new LogNavigationOptions();
     public ProjectProfile copy() { return SettingsValues.copy(this, ProjectProfile.class); }
     public void validate() {
         if (mappings.isEmpty()) throw new IllegalArgumentException("Add at least one source path mapping.");
         fields.validate();
+        navigation.validate();
         java.util.Set<String> remote = new java.util.HashSet<>();
         for (PathMapping mapping : mappings) {
             mapping.validate();

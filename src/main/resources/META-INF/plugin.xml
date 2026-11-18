@@ -29,6 +29,12 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.17.0</b></p>
+      <ul>
+        <li>Navigate to reported logger coordinates or choose PHP category-based logger candidates, separately from exception origins.</li>
+        <li>Adapt source-field mappings and local lookup behavior to existing consumer log formats, including ECS/OpenTelemetry and custom PHP loggers.</li>
+        <li>Show event-specific Logging guidance with a synthetic logging-fields example and native project text search.</li>
+      </ul>
       <p><b>0.16.2</b></p>
       <ul><li>Preserve explicit exception origins and keep .NET outer/inner frames attached to their own causes after the Kotlin migration.</li></ul>
       <p><b>0.16.1</b></p>
@@ -70,6 +76,7 @@
     <incompatible-with>dev.graylog.jetbrains</incompatible-with>
     <depends optional="true" config-file="graylog-php.xml">com.jetbrains.php</depends>
     <extensionPoints>
+        <extensionPoint name="logOriginProvider" interface="dev.graylog.jetbrains.LogOriginProvider" dynamic="true"/>
         <extensionPoint name="variableHintProvider" interface="dev.graylog.jetbrains.VariableHintProvider" dynamic="true"/>
     </extensionPoints>
     <extensions defaultExtensionNs="com.intellij">

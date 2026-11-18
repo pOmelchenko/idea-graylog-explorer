@@ -6,6 +6,7 @@ import com.google.gson.JsonElement
 import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
@@ -23,6 +24,7 @@ import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.Color
 import java.awt.Font
+import java.awt.datatransfer.StringSelection
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.nio.file.Path
@@ -70,12 +72,24 @@ class EventInspector(
     private val inspectorLayout = CardLayout()
     private val inspectorBody = JPanel(inspectorLayout)
     private val eventLevel = JLabel()
+    private val origin = JButton("Find log statement")
+    private val messageSearch = JButton("Search message in project")
+    private val copyExample = JButton("Copy logging fields example")
+    private val guidance = textArea(true)
+    private val navigator = LogOriginNavigator(project)
+    private lateinit var guidanceTab: TabInfo
 
     init {
         this.onOpen = onOpen
         this.onAround = onAround
         this.onFollow = onFollow
         com.intellij.openapi.util.Disposer.register(parent, this)
+        com.intellij.openapi.util.Disposer.register(this, navigator)
+        origin.name = "inspector.logOrigin"
+        messageSearch.name = "inspector.messageSearch"
+        copyExample.name = "inspector.copyLoggingExample"
+        guidance.name = "inspector.loggingGuidance"
+        guidance.font = UIUtil.getLabelFont()
         message.name = "inspector.message"
         rawStack.setName("inspector.rawStack")
         sourceMapping.setName("inspector.sourceMapping")
@@ -193,6 +207,31 @@ class EventInspector(
         inspectorTabs.addTab(TabInfo(trace).setText("Stack trace"))
         inspectorTabs.addTab(TabInfo(ExplorerUi.scroll(rawJson)).setText("JSON"))
         inspectorTabs.addTab(TabInfo(ExplorerUi.scroll(rawStack)).setText("Exception text"))
+        val logging = JPanel(BorderLayout())
+        origin.addActionListener {
+            val event = selected; val connection = active
+            if (event != null && connection != null) {
+                origin.isEnabled = false
+                guidance.text = "Looking up local source…\n\n" + loggingGuidance(event)
+                navigator.find(event, connection.copy(), this) { status ->
+                    origin.isEnabled = selected != null && active != null
+                    guidance.text = status + "\n\n" + loggingGuidance(event)
+                    guidance.caretPosition = 0
+                    inspectorTabs.select(guidanceTab, false)
+                }
+            }
+        }
+        messageSearch.addActionListener { selected?.let { navigator.searchMessage(it, this) } }
+        copyExample.addActionListener { selected?.let { CopyPasteManager.getInstance().setContents(StringSelection(LogGuidance.example(it.format()))) } }
+        logging.add(ExplorerUi.bar(ExplorerUi.toolbar("Graylog.LoggingGuidance", this,
+            ExplorerUi.button(origin, AllIcons.Actions.Find, true),
+            ExplorerUi.button(messageSearch, AllIcons.Actions.Find, true),
+            ExplorerUi.button(copyExample, AllIcons.Actions.Copy, false),
+            ExplorerUi.command("Configure log navigation", AllIcons.General.Settings, Runnable {
+                ShowSettingsUtil.getInstance().showSettingsDialog(project, GraylogProjectConfigurable::class.java)
+            }, BooleanSupplier { true })), null, false), BorderLayout.NORTH)
+        logging.add(ExplorerUi.scroll(guidance), BorderLayout.CENTER)
+        guidanceTab = inspectorTabs.addTab(TabInfo(logging).setText("Logging guidance"))
         val split = OnePixelSplitter(true, "graylog.explorer.inspector.message.proportion", 0.28f).apply {
             name = "inspector.messageSplitter"
             setHonorComponentsMinimumSize(true)
@@ -217,6 +256,7 @@ class EventInspector(
             "Graylog.Inspector",
             this,
             ExplorerUi.button(open, AllIcons.Actions.EditSource, false),
+            ExplorerUi.button(origin, AllIcons.Actions.Find, false),
             ExplorerUi.button(around, AllIcons.General.History, false),
             ExplorerUi.button(follow, AllIcons.Ide.Link, false),
             ExplorerUi.button(browser, AllIcons.General.Web, false)
@@ -227,7 +267,13 @@ class EventInspector(
     }
 
     private fun showEvent(event: LogEvent?) {
+        navigator.cancel()
         selected = event
+        origin.isEnabled = event != null && active != null
+        messageSearch.isEnabled = event != null && LogOriginMetadata.read(event).messageQuery.isNotBlank()
+        copyExample.isEnabled = event != null
+        guidance.text = event?.let(::loggingGuidance).orEmpty()
+        guidance.caretPosition = 0
         inspectorLayout.show(inspectorBody, if (event == null) "empty" else "details")
         eventLevel.setText(if (event == null) "" else event.level())
         eventLevel.setForeground(
@@ -272,6 +318,8 @@ class EventInspector(
     }
 
     private fun browserTarget(): GraylogLinks.Target? = GraylogLinks.event(active, selected, loadedRequest)
+
+    private fun loggingGuidance(event: LogEvent): String = LogGuidance.render(event, active, project.basePath?.let(Path::of))
 
     private fun mappedSource(source: SourceLocation?): Path? {
         return if (source == null || active == null) null else source.resolve(

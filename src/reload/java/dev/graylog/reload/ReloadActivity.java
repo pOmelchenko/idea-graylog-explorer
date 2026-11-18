@@ -100,6 +100,8 @@ public final class ReloadActivity implements StartupActivity.DumbAware {
         check(ActionManager.getInstance().getAction("Graylog.SearchSelection") != null, "Action registered");
         var providers = (com.intellij.openapi.extensions.ExtensionPointName<?>) type("VariableHintProvider").getField("EP").get(null);
         check(providers.getExtensionList().stream().anyMatch(it -> it.getClass().getName().endsWith("PhpVariableHintProvider")), "PHP extension available");
+        var origins = (com.intellij.openapi.extensions.ExtensionPointName<?>) type("LogOriginProvider").getField("EP").get(null);
+        check(origins.getExtensionList().stream().filter(it -> it.getClass().getName().endsWith("PhpLogOriginProvider")).count() == 1, "One PHP log-origin adapter after loading");
         var live = findAction((Container) panel, "Live");
         var liveEvent = AnActionEvent.createFromAnAction(live, null, "GraylogReload", DataContext.EMPTY_CONTEXT);
         ((ToggleAction) live).setSelected(liveEvent, true);

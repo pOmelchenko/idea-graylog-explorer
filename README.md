@@ -99,6 +99,13 @@ JVM frames infer package-relative source paths from the qualified class and the 
 
 Historical variable values still use the optional, conservative PHP adapter; adding stack parsing does not add variable analysis for another language. Parsers require no optional language plugin. See the [portability review](docs/portability-2026-11-18.md) and [synthetic fixtures](src/test/resources/stacks).
 
+## Log statement navigation
+
+**Find log statement** uses caller coordinates or offers PHP category-based logger/method candidates, separately from exception navigation. **Logging guidance** explains the selected event's metadata and mapping needs, with native project text search and a synthetic example using configured field names.
+
+Adapt existing formats and local lookup behavior per project/connection; no plugin-specific schema is required. See [log-origin navigation and logging guidance](docs/log-origin-navigation.md) for source roles, ECS/OpenTelemetry, custom loggers and limits.
+
+
 ## Build and test
 
 The mixed Java/Kotlin build uses Gradle, JDK **25** and a pinned downloadable PhpStorm SDK:
