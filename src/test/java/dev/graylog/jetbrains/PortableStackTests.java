@@ -29,17 +29,18 @@ final class PortableStackTests {
             check(sites.stream().allMatch(s -> s.location().file().startsWith("/local")), name + " confined to root");
             eq(1L, sites.getFirst().count(), name + " count");
             for (var part : chain) check(sites.stream().anyMatch(s -> s.location().line() == part.origin().line() && s.types().contains(part.type())), name + " editor site for " + part.type());
-            for (boolean dotted : List.of(false, true)) {
-                JsonObject error = new JsonObject(); error.addProperty("type", chain.getFirst().type());
+            for (boolean dotted : List.of(false, true)) for (boolean typed : List.of(true, false)) {
+                String shape = " ECS " + (dotted ? "dotted" : "object") + (typed ? " with type" : " without type");
+                JsonObject error = new JsonObject(); if (typed) error.addProperty("type", chain.getFirst().type());
                 error.addProperty("message", "Schema message"); error.addProperty("stack_trace", text);
                 JsonObject wrapped = new JsonObject(); wrapped.addProperty("level", 3);
                 if (dotted) error.entrySet().forEach(e -> wrapped.add("error." + e.getKey(), e.getValue())); else wrapped.add("error", error);
                 var ecsEvent = new LogEvent(name, "fixture", wrapped); var ecsChain = ExceptionDetails.chain(ecsEvent);
-                eq(chain.stream().map(ExceptionDetails.Part::type).toList(), ecsChain.stream().map(ExceptionDetails.Part::type).toList(), name + " ECS types");
-                eq(chain.stream().map(ExceptionDetails.Part::frames).toList(), ecsChain.stream().map(ExceptionDetails.Part::frames).toList(), name + " ECS frame order/ownership");
-                eq("Schema message", ecsChain.getFirst().message(), name + " ECS metadata retained");
-                eq(text, ecsEvent.text("error.stack_trace"), name + " original ECS text retained in document");
-                eq(sites.stream().map(ExceptionSites.Site::location).toList(), CoreTests.sites(List.of(ecsEvent), connection, Path.of("/local")).stream().map(ExceptionSites.Site::location).toList(), name + " ECS source parity");
+                if (typed) eq(chain.stream().map(ExceptionDetails.Part::type).toList(), ecsChain.stream().map(ExceptionDetails.Part::type).toList(), name + shape + " types");
+                eq(chain.stream().map(ExceptionDetails.Part::frames).toList(), ecsChain.stream().map(ExceptionDetails.Part::frames).toList(), name + shape + " frame order/ownership");
+                eq("Schema message", ecsChain.getFirst().message(), name + shape + " metadata retained");
+                eq(text, ecsEvent.text("error.stack_trace"), name + shape + " original text retained in document");
+                eq(sites.stream().map(ExceptionSites.Site::location).toList(), CoreTests.sites(List.of(ecsEvent), connection, Path.of("/local")).stream().map(ExceptionSites.Site::location).toList(), name + shape + " source parity");
             }
             if (name.equals("dotnet-inner")) {
                 eq(List.of(8), chain.getFirst().trace().stream().map(SourceLocation::line).toList(), "outer frames resume after boundary");
@@ -67,6 +68,17 @@ final class PortableStackTests {
         var ecsEvent = new LogEvent("ecs", "fixture", ecs);
         eq("TypeError", ExceptionSites.exceptionName(ecsEvent), "ECS type");
         eq(new SourceLocation("/srv/app/main.js", 42), ExceptionDetails.chain(ecsEvent).getFirst().frames().getFirst(), "ECS frame");
+        for (String type : List.of("", "  ")) {
+            var flat = new JsonObject(); flat.addProperty("error.type", type);
+            flat.addProperty("error.message", "Frame-only stack"); flat.addProperty("error.stack_trace", "at run (/srv/app/main.js:42:2)");
+            var untyped = ExceptionDetails.chain(new LogEvent("untyped", "fixture", flat));
+            eq(1, untyped.size(), "ECS frame-only stack needs no type metadata");
+            eq(new SourceLocation("/srv/app/main.js", 42), untyped.getFirst().origin(), "untyped ECS frame origin");
+        }
+        var messageOnly = new JsonObject(); messageOnly.addProperty("error.message", "Ordinary message");
+        eq(List.of(), ExceptionDetails.chain(new LogEvent("message-only", "fixture", messageOnly)), "a dotted message alone is not stack data");
+        messageOnly.addProperty("error.stack_trace", " \n ");
+        eq(List.of(), ExceptionDetails.chain(new LogEvent("blank-stack", "fixture", messageOnly)), "blank stack without type is ignored");
         immutable(); return assertions;
     }
     private static void immutable() {

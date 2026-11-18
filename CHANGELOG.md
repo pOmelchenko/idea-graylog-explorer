@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.2
+
+- Inherit missing-type ECS decoding and runtime/export regression coverage while preserving configurable log-origin navigation.
+
 ## 0.17.1
 
 - Inherit reviewed JVM/ECS runtime normalization and the shared Kotlin parser, retaining configurable log-origin navigation and event guidance.
@@ -9,6 +13,10 @@
 - Find a log statement separately from exception navigation: use reported caller coordinates, or choose PHP logger/method candidates from category metadata. Keep message text search as a separate native Find in Files action.
 - Configure consumer field names and source-coordinate roles per project/connection; optionally recognize ECS/OpenTelemetry, disable category lookup, or supply custom PHP logger classes/methods. Local behavior changes retain search and exception-index results.
 - Add event-specific Logging guidance and a synthetic example using the current field mapping; existing formats can be mapped without adopting a plugin-specific schema.
+
+## 0.16.4
+
+- Decode dotted ECS stacks without error.type through the Kotlin adapter; inherit all missing-type runtime/export regressions.
 
 ## 0.16.3
 
@@ -27,6 +35,11 @@
 - Join adjacent visible events from the same source into continuous color segments, retaining rounded ends and the splitter inset. Respect sorting, filtering, selection and source-color overrides; never merge distinct sources merely because their colors match.
 - Move exception parsers/models, Explorer views, connection transactions, editor decorations/PHP hints and the panel to Kotlin. Keep persistent XML beans, credential keys, extension IDs and Java callers compatible.
 - Add adjacency/raster contracts and actual IDE table-renderer checks for source segments, including sorted and filtered view order.
+
+## 0.15.3
+
+- Decode dotted ECS stack data when type metadata is absent or blank, retaining the same frame/cause locations as native error objects.
+- Check every runtime fixture without error.type through native/dotted decoding and full-period export/hydration; keep message-only and blank-stack records outside this fallback.
 
 ## 0.15.2
 
