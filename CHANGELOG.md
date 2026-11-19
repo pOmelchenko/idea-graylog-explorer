@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.17.4
+
+- Keep language-provider candidates in local filesystem coordinates; remote source mappings apply only to coordinates reported by the event.
+- Preserve PHP logger calls and method-only anchors under root/overlapping mappings, with real IDE navigation regressions alongside reported/generic coordinate checks.
+
+## 0.17.3
+
+- Keep filesystem stack locations when the same line contains URL arguments; filter virtual locations per match and decode file URLs individually.
+- Retain types parsed from ECS stacks when type metadata is missing or blank; explicitly reported types, messages, origins and structured causes keep their precedence.
+- Check both fixes across runtime fixtures, editor sites and full-period export/hydration.
+
+## 0.17.2
+
+- Inherit missing-type ECS decoding and runtime/export regression coverage while preserving configurable log-origin navigation.
+
+## 0.17.1
+
+- Inherit reviewed JVM/ECS runtime normalization and the shared Kotlin parser, retaining configurable log-origin navigation and event guidance.
+
+## 0.17.0
+
+- Find a log statement separately from exception navigation: use reported caller coordinates, or choose PHP logger/method candidates from category metadata. Keep message text search as a separate native Find in Files action.
+- Configure consumer field names and source-coordinate roles per project/connection; optionally recognize ECS/OpenTelemetry, disable category lookup, or supply custom PHP logger classes/methods. Local behavior changes retain search and exception-index results.
+- Add event-specific Logging guidance and a synthetic example using the current field mapping; existing formats can be mapped without adopting a plugin-specific schema.
+
 ## 0.16.5
 
 - Keep filesystem stack locations when the same line contains URL arguments; filter virtual locations per match and decode file URLs individually.

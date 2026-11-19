@@ -32,6 +32,9 @@ public record OperationConfig(Server server, Transport transport, Scan scan) {
             value.exceptionObjectField = fields.get("exception"); value.fileField = fields.get("file");
             value.lineField = fields.get("line"); value.stackTraceField = fields.get("stack_trace");
             value.requestIdField = fields.get("request_id"); value.traceIdField = fields.get("trace_id");
+            value.logFileField = fields.getOrDefault("log_file", "log_file"); value.logLineField = fields.getOrDefault("log_line", "log_line");
+            value.logFunctionField = fields.getOrDefault("log_function", "log_function"); value.logCategoryField = fields.getOrDefault("log_category", "ctxt_category");
+            value.logClassField = fields.getOrDefault("log_class", "log_class");
             return value;
         }
     }

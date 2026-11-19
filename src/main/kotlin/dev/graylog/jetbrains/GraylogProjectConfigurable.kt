@@ -82,6 +82,24 @@ class GraylogProjectConfigurable(private val project: Project) : SearchableConfi
                 row("Trace ID field:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.traceIdField }, { profileDraft.fields.traceIdField = it.trim() }).component.apply { name = "project.traceId" } }
                 row { comment("Use dotted names for nested fields, for example context.request_id.") }
             }
+            group("Log statement fields") {
+                row("Logger source file:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.logFileField }, { profileDraft.fields.logFileField = it.trim() }).component.apply { name = "project.logFile" } }
+                row("Logger source line:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.logLineField }, { profileDraft.fields.logLineField = it.trim() }).component.apply { name = "project.logLine" } }
+                row("Logger function:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.logFunctionField }, { profileDraft.fields.logFunctionField = it.trim() }).component.apply { name = "project.logFunction" } }
+                row("Logger class (if separate):") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.logClassField }, { profileDraft.fields.logClassField = it.trim() }).component.apply { name = "project.logClass" } }
+                row("Logger category:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.fields.logCategoryField }, { profileDraft.fields.logCategoryField = it.trim() }).component.apply { name = "project.logCategory" } }
+                row { comment("Keep logger coordinates separate from exception origins.<br>ECS and OpenTelemetry origin fields are also recognized automatically. See Logging guidance for a selected event.") }
+            }
+            group("Log navigation behavior") {
+                row { checkBox("Recognize ECS and OpenTelemetry source fields").bindSelected({ profileDraft.navigation.standardFields }, { profileDraft.navigation.standardFields = it }).component.apply { name = "project.standardOrigins" } }
+                row { checkBox("Look up log calls inside a category/function method").bindSelected({ profileDraft.navigation.categoryLookup }, { profileDraft.navigation.categoryLookup = it }).component.apply { name = "project.categoryLookup" } }
+                val roles = listOf(Choice("candidate", "Source candidate (role unspecified)"), Choice("logger", "Log statement coordinates"), Choice("ignore", "Ignore"))
+                row("Generic file/line fields:") { comboBox(roles).bindItem({ roles.firstOrNull { it.id == profileDraft.navigation.genericSourceRole } ?: roles.first() }, { profileDraft.navigation.genericSourceRole = it?.id ?: "candidate" }).component.apply { name = "project.genericSourceRole" } }
+                row { checkBox("Recognize Yii, PSR-3 and Monolog logger classes").bindSelected({ profileDraft.navigation.knownLoggers }, { profileDraft.navigation.knownLoggers = it }).component.apply { name = "project.knownLoggers" } }
+                row("Additional PHP logger classes:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.navigation.loggerClasses }, { profileDraft.navigation.loggerClasses = it.trim() }).component.apply { name = "project.loggerClasses" } }
+                row("PHP logger methods:") { textField().align(AlignX.FILL).resizableColumn().bindText({ profileDraft.navigation.loggerMethods }, { profileDraft.navigation.loggerMethods = it.trim() }).component.apply { name = "project.loggerMethods" } }
+                row { comment("Comma-separated class/method names, including custom logger wrappers.<br>These settings affect local source lookup; they do not change the search or exception index.") }
+            }
         }.apply { border = JBUI.Borders.emptyTop(14) }
         profile.addActionListener {
             if (!loading) {

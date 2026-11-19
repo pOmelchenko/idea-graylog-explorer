@@ -29,6 +29,20 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.17.4</b></p>
+      <ul><li>Preserve locally resolved PHP log candidates when remote source mappings include the checkout path.</li></ul>
+      <p><b>0.17.3</b></p>
+      <ul><li>Keep local frames beside URL arguments and recover ECS exception types from stack headers when type metadata is absent.</li></ul>
+      <p><b>0.17.2</b></p>
+      <ul><li>Decode dotted ECS stack data when error.type is absent or blank.</li></ul>
+      <p><b>0.17.1</b></p>
+      <ul><li>Use the shared runtime parser for JVM uncaught headers and ECS frame ordering.</li></ul>
+      <p><b>0.17.0</b></p>
+      <ul>
+        <li>Navigate to reported logger coordinates or choose PHP category-based logger candidates, separately from exception origins.</li>
+        <li>Adapt source-field mappings and local lookup behavior to existing consumer log formats, including ECS/OpenTelemetry and custom PHP loggers.</li>
+        <li>Show event-specific Logging guidance with a synthetic logging-fields example and native project text search.</li>
+      </ul>
       <p><b>0.16.5</b></p>
       <ul><li>Keep local frames beside URL arguments and recover ECS exception types from stack headers when type metadata is absent.</li></ul>
       <p><b>0.16.4</b></p>
@@ -85,6 +99,7 @@
     <incompatible-with>dev.graylog.jetbrains</incompatible-with>
     <depends optional="true" config-file="graylog-php.xml">com.jetbrains.php</depends>
     <extensionPoints>
+        <extensionPoint name="logOriginProvider" interface="dev.graylog.jetbrains.LogOriginProvider" dynamic="true"/>
         <extensionPoint name="variableHintProvider" interface="dev.graylog.jetbrains.VariableHintProvider" dynamic="true"/>
     </extensionPoints>
     <extensions defaultExtensionNs="com.intellij">

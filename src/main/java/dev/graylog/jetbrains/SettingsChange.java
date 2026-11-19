@@ -9,7 +9,7 @@ import java.util.LinkedHashMap;
 /** Pure change classification. Runtime selection/history is deliberately outside Settings changes. */
 public record SettingsChange(Set<Area> areas) {
     public enum Area { CONNECTIONS, NETWORK, INDEX_OPTIONS, INDEX_POLICY, LIVE, SEARCH_DEFAULTS,
-        SOURCE_STYLE, HIGHLIGHT_STYLE, HIGHLIGHT_MODE, MAPPINGS, LOG_FORMAT, PREFERENCE }
+        SOURCE_STYLE, HIGHLIGHT_STYLE, HIGHLIGHT_MODE, MAPPINGS, LOG_FORMAT, LOG_NAVIGATION, PREFERENCE }
     public SettingsChange { areas = Set.copyOf(areas); }
     public boolean has(Area area) { return areas.contains(area); }
     public boolean isEmpty() { return areas.isEmpty(); }
@@ -42,6 +42,7 @@ public record SettingsChange(Set<Area> areas) {
             ProjectProfile x = a.get(key), y = b.get(key);
             if (x == null || y == null || !SettingsValues.same(x.mappings, y.mappings)) changed.add(Area.MAPPINGS);
             if (x == null || y == null || !x.fields.aliases().equals(y.fields.aliases())) changed.add(Area.LOG_FORMAT);
+            if (x == null || y == null || !SettingsValues.same(x.navigation, y.navigation)) changed.add(Area.LOG_NAVIGATION);
         }
         return new SettingsChange(changed);
     }

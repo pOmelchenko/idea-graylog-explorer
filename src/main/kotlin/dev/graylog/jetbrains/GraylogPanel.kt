@@ -1025,7 +1025,7 @@ class GraylogPanel(
         )
         active = nextActive.copy()
         if (change.has(SettingsChange.Area.LOG_FORMAT)) completion.reset(nextActive.fields)
-        if (change.has(SettingsChange.Area.CONNECTIONS) || change.has(SettingsChange.Area.LOG_FORMAT) || change.has(
+        if (change.has(SettingsChange.Area.CONNECTIONS) || change.has(SettingsChange.Area.LOG_FORMAT) || change.has(SettingsChange.Area.LOG_NAVIGATION) || change.has(
                 SettingsChange.Area.MAPPINGS
             )
         ) {

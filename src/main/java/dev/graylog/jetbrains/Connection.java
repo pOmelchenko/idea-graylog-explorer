@@ -16,13 +16,14 @@ public final class Connection {
     public String serviceField = "source";
     public List<PathMapping> mappings = new ArrayList<>();
     public LogFormat fields = new LogFormat();
+    public LogNavigationOptions navigation = new LogNavigationOptions();
 
     public Connection copy() {
         Connection c = new Connection();
         c.id = id; c.name = name; c.apiUrl = apiUrl; c.webUrl = webUrl;
         c.remoteRoot = remoteRoot; c.localRoot = localRoot; c.serviceField = serviceField;
         c.credentialId = credentialId; c.mappings = new ArrayList<>(mappings.stream().map(PathMapping::copy).toList()); c.fields = fields.copy();
-        return c;
+        c.navigation = navigation.copy(); return c;
     }
 
     public static String normalizeApiUrl(String input) {

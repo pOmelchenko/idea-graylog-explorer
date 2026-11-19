@@ -40,6 +40,7 @@ public final class CoreTests {
         assertions += PortableStackTests.run();
         assertions += TextTraceReviewTests.run();
         assertions += RuntimeNormalizationTests.run();
+        assertions += LogOriginTests.run();
         assertions += PortableExportTests.run();
         assertions += SourceBandsTests.run();
         assertions += OperationPolicyTests.run();

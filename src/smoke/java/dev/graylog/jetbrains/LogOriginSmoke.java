@@ -1,0 +1,158 @@
+package dev.graylog.jetbrains;
+
+import com.google.gson.JsonObject;
+import com.intellij.openapi.application.ModalityState;
+import com.intellij.openapi.application.ReadAction;
+import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.TextEditor;
+import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
+import com.intellij.util.concurrency.AppExecutorUtil;
+import javax.swing.*;
+import java.nio.file.*;
+import java.util.List;
+
+/** Real PHP index/callee resolution, source navigation, profile bindings and event-specific guidance. */
+final class LogOriginSmoke {
+    static void run(Project project, GraylogPanel panel, Path report, Runnable done) {
+        var navigator = new LogOriginNavigator(project);
+        Connection connection = new Connection(); connection.localRoot = project.getBasePath();
+        connection.apiUrl = System.getProperty("graylog.smoke.api");
+        Path source = Path.of(project.getBasePath(), "logging-fixture.php");
+        try {
+            List<String> lines = Files.readAllLines(source);
+            int one = line(lines, "// logger-one"), two = line(lines, "// logger-two");
+            var explicit = event("", one); var category = event("DemoLogging\\Service::run", 0);
+            ReadAction.nonBlocking(() -> {
+                var direct = navigator.locate(explicit, connection);
+                check(direct.getDirect() && direct.getTargets().size() == 1 && direct.getTargets().getFirst().getLine() == one, "explicit log origin");
+                var candidates = navigator.locate(category, connection);
+                check(!candidates.getDirect(), "category results require choice");
+                check(candidates.getTargets().stream().map(LogOriginNavigator.Target::getLine).sorted().toList().equals(List.of(one, two)), "only direct resolved logger calls inside the method: " + candidates);
+                for (String prefix : List.of("/", source.getParent().getParent().toString())) for (String localRoot : List.of("", project.getBasePath())) {
+                    var mapped = connection.copy(); mapped.mappings.clear();
+                    mapped.mappings.add(new PathMapping(prefix, localRoot));
+                    var local = navigator.locate(category, mapped);
+                    check(local.getTargets().stream().map(LogOriginNavigator.Target::getLine).sorted().toList().equals(List.of(one, two)) && !local.getDirect(), "local logger candidates survive overlapping remote prefix " + prefix + ": " + local);
+                    check(local.getTargets().stream().allMatch(t -> t.getPath().equals(source)), "provider paths remain local under " + prefix);
+                    var anchor = navigator.locate(event("DemoLogging\\Service::constructionOnly", 0), mapped);
+                    check(anchor.getTargets().size() == 1 && anchor.getTargets().getFirst().getPath().equals(source) && !anchor.getDirect(), "local method anchor survives overlapping remote prefix " + prefix);
+                    String deployed = prefix.equals("/") ? "/logging-fixture.php" : prefix + "/logging-fixture.php";
+                    var reportedFields = explicit.fields(); reportedFields.addProperty("log_file", deployed);
+                    var reported = navigator.locate(new LogEvent("remote-origin", "fixture", reportedFields), mapped);
+                    check(reported.getDirect() && reported.getTargets().getFirst().getPath().equals(source) && reported.getTargets().getFirst().getLine() == one, "event coordinates still use remote mapping " + prefix);
+                    var genericFields = category.fields(); genericFields.addProperty("file", deployed); genericFields.addProperty("line", line(lines, "// construction"));
+                    var genericMapped = navigator.locate(new LogEvent("generic-remote", "fixture", genericFields), mapped);
+                    check(genericMapped.getTargets().size() == 3 && !genericMapped.getDirect() && genericMapped.getTargets().stream().allMatch(t -> t.getPath().equals(source)), "generic event coordinates are mapped alongside local candidates " + prefix);
+                }
+                var mixedFields = category.fields(); mixedFields.addProperty("file", "/application/logging-fixture.php"); mixedFields.addProperty("line", line(lines, "// construction"));
+                var mixed = navigator.locate(new LogEvent("mixed", "fixture", mixedFields), connection);
+                check(mixed.getTargets().size() == 3 && !mixed.getDirect(), "generic throw/source coordinates do not suppress logger candidates");
+                var declared = connection.copy(); declared.navigation.genericSourceRole = "logger";
+                check(navigator.locate(new LogEvent("declared", "fixture", mixedFields), declared).getDirect(), "consumer can declare generic fields to mean logger coordinates");
+                var fallback = navigator.locate(event("DemoLogging\\Service::constructionOnly", 0), connection);
+                check(fallback.getTargets().size() == 1 && fallback.getTargets().getFirst().getDescription().contains("exact log call not identified"), "message construction is a method anchor, not a logger call");
+                var psr = navigator.locate(event("DemoLogging\\PsrService::run", 0), connection);
+                check(psr.getTargets().size() == 1 && psr.getTargets().getFirst().getLine() == line(lines, "// psr-logger"), "PSR-3 interface call");
+                var custom = connection.copy(); custom.navigation.knownLoggers = false;
+                custom.navigation.loggerClasses = "DemoLogging\\CustomLogger"; custom.navigation.loggerMethods = "write";
+                var found = navigator.locate(event("DemoLogging\\CustomService::run", 0), custom);
+                check(found.getTargets().size() == 1 && found.getTargets().getFirst().getLine() == line(lines, "// custom-logger"), "consumer-defined logger class and method");
+                custom.navigation.categoryLookup = false;
+                check(navigator.locate(category, custom).getTargets().isEmpty(), "category lookup disabled");
+                check(navigator.locate(event("", 99999), connection).getTargets().isEmpty(), "out-of-range line rejected");
+                return true;
+            }).inSmartMode(project).withDocumentsCommitted(project).finishOnUiThread(ModalityState.any(), ignored -> {
+                try {
+                    Disposer.dispose(navigator);
+                    profile(project);
+                    Timer settled = new Timer(500, e -> { try {
+                    EventInspector inspector = (EventInspector) SmokeUi.component(panel, "explorer.inspector");
+                    inspector.show(category, connection, null);
+                    SmokeUi.prepare(project);
+                    inspector.tabs().select(inspector.tabs().getTabAt(4), false).doWhenDone(() -> {
+                    Timer painted = new Timer(600, tick -> { try {
+                    JTextArea guidance = (JTextArea) SmokeUi.component(panel, "inspector.loggingGuidance");
+                    check(guidance.getText().contains("DemoLogging\\Service::run") && guidance.getText().contains("first map your existing"), "event-specific guidance");
+                    check(inspector.tabs().getSelectedInfo() == inspector.tabs().getTabAt(4), "guidance tab remains selected after repaint");
+                    ReleaseScreenshots.capture(inspector, report.resolve("logging-guidance.png"));
+                    SmokeUi.clickToolbar(panel, "Copy logging fields example");
+                    String example = com.intellij.openapi.ide.CopyPasteManager.getInstance().getContents(java.awt.datatransfer.DataFlavor.stringFlavor);
+                    check(example != null && example.contains("<deployed-source-path>") && !example.contains("bad value"), "copy example uses neutral placeholders, not selected event values");
+                    SmokeUi.clickToolbar(panel, "Find log statement");
+                    await(report, () -> originList() != null, () -> {
+                    check(originList().getModel().getSize() == 2, "native chooser offers both logger calls");
+                    inspector.show(explicit, connection, null);
+                    check(originList() == null, "changing event closes the owned candidate popup");
+                    check(!SmokeUi.command(panel, "Open in Editor").isEnabled(), "logger origin is separate from exception/legacy source navigation");
+                    SmokeUi.clickToolbar(panel, "Find log statement");
+                    await(report, () -> {
+                        for (var fileEditor : FileEditorManager.getInstance(project).getAllEditors())
+                            if (fileEditor instanceof TextEditor editor && editor.getFile().getPath().equals(source.toString()) && editor.getEditor().getCaretModel().getLogicalPosition().line == one - 1) return true;
+                        return false;
+                    }, () -> {
+                        check(Files.readAllLines(source).equals(lines), "navigation does not modify source");
+                        Files.writeString(report.resolve("log-origin-result.txt"), "PASS: PHP category/callee candidates, root/overlapping remote mappings with explicit/project-default local roots, method anchors, reported/generic coordinate mapping, closure exclusion, PSR-3, custom logger profiles, metadata-only policy, Settings bindings, guidance and actual direct navigation.\n");
+                        done.run();
+                    });
+                    });
+                    } catch (Throwable error) { fail(report, error); } });
+                    painted.setRepeats(false); painted.start();
+                    });
+                    } catch (Throwable error) { fail(report, error); } });
+                    settled.setRepeats(false); settled.start();
+                } catch (Throwable error) { fail(report, error); }
+            }).submit(AppExecutorUtil.getAppExecutorService()).onError(error -> fail(report, error));
+        } catch (Throwable error) { fail(report, error); }
+    }
+    private static void profile(Project project) throws Exception {
+        var saved = GraylogSettings.get(project).getState().copy();
+        var settings = new GraylogProjectConfigurable(project);
+        try {
+            settings.createComponent(); settings.reset();
+            ((JTextField) SmokeUi.component(settings, "project.logFile")).setText("ctx.origin.file");
+            ((JTextField) SmokeUi.component(settings, "project.logLine")).setText("ctx.origin.line");
+            ((JTextField) SmokeUi.component(settings, "project.logClass")).setText("ctx.class");
+            ((JTextField) SmokeUi.component(settings, "project.logFunction")).setText("ctx.method");
+            ((JTextField) SmokeUi.component(settings, "project.loggerClasses")).setText("DemoLogging\\CustomLogger");
+            ((JTextField) SmokeUi.component(settings, "project.loggerMethods")).setText("write");
+            ((JCheckBox) SmokeUi.component(settings, "project.categoryLookup")).setSelected(false);
+            settings.apply(); settings.reset();
+            var effective = GraylogSettings.get(project).getState().defaults;
+            check(effective.fields.logFileField.equals("ctx.origin.file") && effective.fields.logLineField.equals("ctx.origin.line"), "source field bindings persist");
+            check(effective.fields.logClassField.equals("ctx.class") && effective.fields.logFunctionField.equals("ctx.method"), "split symbol field bindings persist");
+            check(!effective.navigation.categoryLookup && effective.navigation.loggerClasses.equals("DemoLogging\\CustomLogger") && effective.navigation.loggerMethods.equals("write"), "behavior profile persists");
+            check(!settings.isModified(), "reset is clean");
+        } finally { settings.disposeUIResources(); GraylogSettings.get(project).replace(saved); }
+    }
+    private static LogEvent event(String category, int line) {
+        var fields = new JsonObject(); fields.addProperty("message", "Error processing items: bad value"); fields.addProperty("level", 6);
+        if (!category.isBlank()) fields.addProperty("ctxt_category", category);
+        if (line > 0) { fields.addProperty("log_file", "/application/logging-fixture.php"); fields.addProperty("log_line", line); }
+        return new LogEvent("log-origin", "fixture", fields);
+    }
+    private static int line(List<String> lines, String marker) { for (int i=0; i<lines.size(); i++) if (lines.get(i).contains(marker)) return i+1; throw new AssertionError(marker); }
+    private static JList<?> originList() {
+        for (java.awt.Window window : java.awt.Window.getWindows()) {
+            var list = originList(window); if (list != null) return list;
+        }
+        return null;
+    }
+    private static JList<?> originList(java.awt.Component component) {
+        if (!component.isShowing()) return null;
+        if (component instanceof JList<?> list && list.getModel().getSize() > 0 && list.getModel().getElementAt(0) instanceof LogOriginNavigator.Target) return list;
+        if (component instanceof java.awt.Container container) for (java.awt.Component child : container.getComponents()) {
+            var list = originList(child); if (list != null) return list;
+        }
+        return null;
+    }
+    private static void check(boolean value, String message) { if (!value) throw new AssertionError(message); }
+    @FunctionalInterface private interface Check { boolean run() throws Exception; }
+    @FunctionalInterface private interface Step { void run() throws Exception; }
+    private static void await(Path report, Check condition, Step done) {
+        long deadline = System.currentTimeMillis() + 20000;
+        Timer timer = new Timer(200, null);
+        timer.addActionListener(e -> { try { if (condition.run()) { timer.stop(); done.run(); } else if (System.currentTimeMillis() > deadline) { timer.stop(); throw new AssertionError("Log source navigation timed out"); } } catch (Throwable error) { timer.stop(); fail(report, error); } }); timer.start();
+    }
+    private static void fail(Path report, Throwable error) { try { var text = new java.io.StringWriter(); error.printStackTrace(new java.io.PrintWriter(text)); Files.writeString(report.resolve("result.txt"), "FAIL: " + text); } catch (Exception ignored) {} }
+}
