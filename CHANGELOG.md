@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add verified tag-driven GitHub Release builds with installable ZIPs, SHA-256 checksums and generated release notes; manual/PR runs provide preview artifacts.
+
 ## 0.17.4
 
 - Keep language-provider candidates in local filesystem coordinates; remote source mappings apply only to coordinates reported by the event.

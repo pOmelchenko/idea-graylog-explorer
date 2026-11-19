@@ -1,0 +1,96 @@
+name: Release build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/release.py'
+      - 'scripts/test_release.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      zip_name: ${{ steps.metadata.outputs.zip_name }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Check version and release tag
+        id: metadata
+        env:
+          REF_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: python3 scripts/release.py prepare --tag "$REF_TAG" >> "$GITHUB_OUTPUT"
+      - name: Test release tooling
+        run: python3 -m unittest discover -s scripts -p test_release.py -v
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+      - name: Test, package and verify PhpStorm / IDEA compatibility
+        run: ./gradlew --no-daemon check buildPlugin verifyPluginStructure verifyPlugin -PverifyIdea=true
+      - name: Prepare ZIP and SHA-256
+        run: python3 scripts/release.py package
+      - name: Upload release package
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-package
+          path: build/release/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-verification
+          path: build/reports/
+          if-no-files-found: ignore
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ZIP_NAME: ${{ needs.build.outputs.zip_name }}
+    steps:
+      - name: Download and verify release package
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh run download "$RUN_ID" --name release-package --dir release
+          cd release
+          sha256sum --check --strict "$ZIP_NAME.sha256"
+      - name: Publish GitHub Release
+        working-directory: release
+        env:
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          PLUGIN_VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          args=(--verify-tag --title "Graylog Explorer $PLUGIN_VERSION" --generate-notes)
+          if [[ "$PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" "$ZIP_NAME" "$ZIP_NAME.sha256" "${args[@]}"
+

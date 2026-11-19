@@ -45,9 +45,9 @@ Compatibility with older platform versions is not declared. Do not widen the bui
 
 ## Install
 
-Marketplace publication is being prepared. Development ZIPs are available in the **plugin-distribution** artifact of a successful [CI run](https://github.com/pOmelchenko/idea-graylog-explorer/actions/workflows/ci.yml). GitHub may require you to sign in to download artifacts.
+Tagged releases provide an installable ZIP and its SHA-256 file in [GitHub Releases](https://github.com/pOmelchenko/idea-graylog-explorer/releases). Download the ZIP directly when a release is available. Development ZIPs remain available in the **plugin-distribution** artifact of a successful [CI run](https://github.com/pOmelchenko/idea-graylog-explorer/actions/workflows/ci.yml); extract that artifact first. GitHub may require sign-in for Actions artifacts.
 
-1. Download and extract the CI artifact to obtain `graylog-jetbrains-<version>.zip`.
+1. Download `graylog-jetbrains-<version>.zip` from a release, or extract it from an Actions artifact.
 2. Open **Settings → Plugins → ⚙ → Install Plugin from Disk…**.
 3. Select the plugin ZIP and restart if prompted.
 4. Open **View → Tool Windows → Graylog**.
@@ -154,6 +154,8 @@ See [the review and refactoring report](docs/review-2026-11-17.md) for findings,
 The manually invoked **Isolated UI smoke tests** workflow exercises both themes against the pinned SDK without a real Graylog server. It requires an IDE startup that can complete without interactive JetBrains Account login; the clean runner currently stops at that screen. Local UI tests use the installed SDK.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development and [docs/PUBLISHING.md](docs/PUBLISHING.md) for the first Marketplace upload, signing secrets and the manually invoked publication workflow. CI runs on pushes and pull requests; Marketplace publication is not triggered by an ordinary push.
+
+The **Release build** workflow also runs manually for a preview package. Pushing `v<pluginVersion>` builds and verifies the tagged source, then publishes a GitHub Release with the ZIP, SHA-256 and generated notes. A prerelease version such as `0.18.0-beta.1` produces a GitHub prerelease. See [release commands and retry behavior](docs/PUBLISHING.md#github-release-builds).
 
 Please report security issues privately as described in [SECURITY.md](SECURITY.md). Remove credentials, identifying log data and internal URLs from public reports.
 

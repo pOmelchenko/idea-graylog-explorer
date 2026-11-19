@@ -24,6 +24,8 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+      - name: Test release tooling
+        run: python3 -m unittest discover -s scripts -p test_release.py -v
       - name: Test, package and verify PhpStorm / IDEA compatibility
         run: ./gradlew --no-daemon check buildPlugin verifyPluginStructure verifyPlugin -PverifyIdea=true
       - name: Upload installable plugin ZIP
