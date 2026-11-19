@@ -29,6 +29,22 @@ final class LogOriginSmoke {
                 var candidates = navigator.locate(category, connection);
                 check(!candidates.getDirect(), "category results require choice");
                 check(candidates.getTargets().stream().map(LogOriginNavigator.Target::getLine).sorted().toList().equals(List.of(one, two)), "only direct resolved logger calls inside the method: " + candidates);
+                for (String prefix : List.of("/", source.getParent().getParent().toString())) for (String localRoot : List.of("", project.getBasePath())) {
+                    var mapped = connection.copy(); mapped.mappings.clear();
+                    mapped.mappings.add(new PathMapping(prefix, localRoot));
+                    var local = navigator.locate(category, mapped);
+                    check(local.getTargets().stream().map(LogOriginNavigator.Target::getLine).sorted().toList().equals(List.of(one, two)) && !local.getDirect(), "local logger candidates survive overlapping remote prefix " + prefix + ": " + local);
+                    check(local.getTargets().stream().allMatch(t -> t.getPath().equals(source)), "provider paths remain local under " + prefix);
+                    var anchor = navigator.locate(event("DemoLogging\\Service::constructionOnly", 0), mapped);
+                    check(anchor.getTargets().size() == 1 && anchor.getTargets().getFirst().getPath().equals(source) && !anchor.getDirect(), "local method anchor survives overlapping remote prefix " + prefix);
+                    String deployed = prefix.equals("/") ? "/logging-fixture.php" : prefix + "/logging-fixture.php";
+                    var reportedFields = explicit.fields(); reportedFields.addProperty("log_file", deployed);
+                    var reported = navigator.locate(new LogEvent("remote-origin", "fixture", reportedFields), mapped);
+                    check(reported.getDirect() && reported.getTargets().getFirst().getPath().equals(source) && reported.getTargets().getFirst().getLine() == one, "event coordinates still use remote mapping " + prefix);
+                    var genericFields = category.fields(); genericFields.addProperty("file", deployed); genericFields.addProperty("line", line(lines, "// construction"));
+                    var genericMapped = navigator.locate(new LogEvent("generic-remote", "fixture", genericFields), mapped);
+                    check(genericMapped.getTargets().size() == 3 && !genericMapped.getDirect() && genericMapped.getTargets().stream().allMatch(t -> t.getPath().equals(source)), "generic event coordinates are mapped alongside local candidates " + prefix);
+                }
                 var mixedFields = category.fields(); mixedFields.addProperty("file", "/application/logging-fixture.php"); mixedFields.addProperty("line", line(lines, "// construction"));
                 var mixed = navigator.locate(new LogEvent("mixed", "fixture", mixedFields), connection);
                 check(mixed.getTargets().size() == 3 && !mixed.getDirect(), "generic throw/source coordinates do not suppress logger candidates");
@@ -76,7 +92,7 @@ final class LogOriginSmoke {
                         return false;
                     }, () -> {
                         check(Files.readAllLines(source).equals(lines), "navigation does not modify source");
-                        Files.writeString(report.resolve("log-origin-result.txt"), "PASS: PHP category/callee candidates, closure exclusion, PSR-3, custom logger profiles, metadata-only policy, Settings bindings, guidance and actual direct navigation.\n");
+                        Files.writeString(report.resolve("log-origin-result.txt"), "PASS: PHP category/callee candidates, root/overlapping remote mappings with explicit/project-default local roots, method anchors, reported/generic coordinate mapping, closure exclusion, PSR-3, custom logger profiles, metadata-only policy, Settings bindings, guidance and actual direct navigation.\n");
                         done.run();
                     });
                     });

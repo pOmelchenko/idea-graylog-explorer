@@ -67,8 +67,8 @@ class LogOriginNavigator(private val project: Project) : Disposable {
         if (DumbService.isDumb(project)) return Result(generic, "Project indexes are updating. Retry method lookup when indexing completes; reported coordinates do not require indexes.", false)
         val candidates = metadata.symbols.flatMap { symbol ->
             LogOriginProvider.EP.extensionList.flatMap { it.candidates(project, symbol, event, connection.navigation) }
-        }.distinctBy { it.location }.take(100).mapNotNull { entry ->
-            entry.location.resolve(connection, root)?.let { target(it, entry.location.line, entry.description) }
+        }.distinctBy { it.localPath to it.line }.take(100).mapNotNull { entry ->
+            entry.localPath.takeIf { it.isAbsolute }?.normalize()?.let { target(it, entry.line, entry.description) }
         }
         val unavailable = if (reported.isEmpty()) "" else "Reported source file/line is unavailable in this checkout. Check Source path mappings and deployed revision. "
         val all = (candidates + generic).distinctBy { it.path to it.line }

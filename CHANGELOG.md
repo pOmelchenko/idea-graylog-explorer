@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.17.4
+
+- Keep language-provider candidates in local filesystem coordinates; remote source mappings apply only to coordinates reported by the event.
+- Preserve PHP logger calls and method-only anchors under root/overlapping mappings, with real IDE navigation regressions alongside reported/generic coordinate checks.
+
 ## 0.17.3
 
 - Keep filesystem stack locations when the same line contains URL arguments; filter virtual locations per match and decode file URLs individually.

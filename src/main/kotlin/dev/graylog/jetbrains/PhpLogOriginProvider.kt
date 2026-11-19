@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.jetbrains.php.PhpIndex
 import com.jetbrains.php.lang.psi.elements.Function
 import com.jetbrains.php.lang.psi.elements.Method
@@ -20,9 +21,11 @@ class PhpLogOriginProvider : LogOriginProvider {
             ProgressManager.checkCanceled()
             val method = cls.findMethodByName(symbol.method) ?: continue
             val file = method.containingFile?.virtualFile ?: continue
+            if (file.fileSystem !is LocalFileSystem) continue
             val index = ProjectFileIndex.getInstance(project)
             if (!index.isInContent(file) || index.isExcluded(file)) continue
             val document = PsiDocumentManager.getInstance(project).getDocument(method.containingFile) ?: continue
+            val localPath = file.toNioPath()
             val calls = PsiTreeUtil.findChildrenOfType(method, MethodReference::class.java).filter { call ->
                 ProgressManager.checkCanceled()
                 if (PsiTreeUtil.getParentOfType(call, Function::class.java) !== method) false
@@ -33,15 +36,15 @@ class PhpLogOriginProvider : LogOriginProvider {
                 }
             }
             if (calls.isEmpty()) result += LogOriginProvider.Candidate(
-                SourceLocation(file.path, document.getLineNumber(method.textOffset) + 1),
+                localPath, document.getLineNumber(method.textOffset) + 1,
                 "Method from ${symbol.field}; exact log call not identified")
             else for (call in calls) {
-                result += LogOriginProvider.Candidate(SourceLocation(file.path, document.getLineNumber(call.textOffset) + 1),
+                result += LogOriginProvider.Candidate(localPath, document.getLineNumber(call.textOffset) + 1,
                     "${call.name} logger call in ${symbol.owner}::${symbol.method}; candidate from ${symbol.field}")
                 if (result.size >= 100) return result
             }
         }
-        return result.distinctBy { it.location }
+        return result.distinctBy { it.localPath to it.line }
     }
 
     private fun loggerClass(initial: PhpClass, options: LogNavigationOptions): Boolean {

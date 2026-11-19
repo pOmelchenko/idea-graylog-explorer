@@ -17,6 +17,8 @@ Reported coordinates are evidence from the event. They do not prove that local s
 
 Metadata navigation works during indexing. Method lookup asks the user to retry when indexes are ready. On-demand work runs in a background committed read action, without a project-wide text scan or a Graylog request. Selecting another event cancels stale results. Disposing the view disposes its candidate popup.
 
+Language adapters return absolute local source paths and line numbers. These candidates are checked directly for file/document availability and a valid line; remote-to-local mappings are not applied again. Reported and generic coordinates from the event still use the configured mappings, including `/` and prefixes overlapping the local checkout.
+
 ## Mapping existing fields
 
 Defaults are convenience aliases, not a required schema:

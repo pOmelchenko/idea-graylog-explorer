@@ -29,6 +29,8 @@
       Uses the Graylog legacy Search API and Search Scripting aggregation API. This is an independent, unofficial plugin.</p>
     ]]></description>
     <change-notes><![CDATA[
+      <p><b>0.17.4</b></p>
+      <ul><li>Preserve locally resolved PHP log candidates when remote source mappings include the checkout path.</li></ul>
       <p><b>0.17.3</b></p>
       <ul><li>Keep local frames beside URL arguments and recover ECS exception types from stack headers when type metadata is absent.</li></ul>
       <p><b>0.17.2</b></p>
